@@ -1,0 +1,6 @@
+{
+  "name": "LocalQuest Tourist Web",
+  "description": "Nền tảng khám phá du lịch LocalQuest với tính năng đăng nhập Google Firebase được sửa lỗi, hỗ trợ hướng dẫn du lịch AI, bản đồ nhiệm vụ du lịch và đặt tour trải nghiệm bản địa.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

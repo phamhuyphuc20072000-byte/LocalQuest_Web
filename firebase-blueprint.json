@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Tourist passport profile and rewards",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "role": { "type": "string", "enum": ["tourist", "host", "admin"] },
+        "points": { "type": "number" },
+        "completedQuests": { "type": "array" },
+        "savedQuests": { "type": "array" },
+        "badges": { "type": "array" },
+        "joinedDate": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["uid", "email"]
+    },
+    "BookingRecord": {
+      "title": "BookingRecord",
+      "description": "Tour reservation with local host",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "questId": { "type": "string", "maxLength": 128 },
+        "questTitle": { "type": "string", "maxLength": 200 },
+        "destination": { "type": "string", "maxLength": 100 },
+        "bookingDate": { "type": "string", "maxLength": 20 },
+        "touristsCount": { "type": "number" },
+        "totalPriceVnd": { "type": "number" },
+        "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled"] },
+        "contactName": { "type": "string", "maxLength": 100 },
+        "contactEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "userId", "questId", "bookingDate", "touristsCount", "totalPriceVnd"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Public and private tourist passport data indexed by user ID"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "BookingRecord",
+      "description": "Tour booking reservations created by tourists"
+    }
+  }
+}
