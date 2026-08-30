@@ -32,7 +32,7 @@ export function ThemeBadge({ t }: { t: string }) {
   );
 }
 
-export function QuestCard({ q, onClick }: { q: Quest; onClick: () => void }) {
+export function QuestCard({ q, onClick }: { q: Quest; onClick: () => void; key?: React.Key }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div

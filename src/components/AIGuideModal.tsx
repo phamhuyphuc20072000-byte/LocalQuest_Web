@@ -54,13 +54,15 @@ export const AIGuideModal: React.FC<AIGuideModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
 
     try {
-      const response = await fetch('/api/ai/quest-assistant', {
+      const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: messageText,
+          message: messageText,
+          history: messages.map(m => ({ role: m.sender === 'ai' ? 'model' : 'user', content: m.text })),
           destination: selectedDestination,
-          touristType: 'Khách du lịch yêu thích trải nghiệm bản địa chân thực, ẩm thực đường phố và các góc phố cổ.'
+          city: selectedDestination,
+          context: `Khu vực tìm kiếm: ${selectedDestination}. Du khách yêu thích trải nghiệm bản địa chân thực, ẩm thực đường phố và các góc phố cổ.`
         })
       });
 
@@ -69,7 +71,7 @@ export const AIGuideModal: React.FC<AIGuideModalProps> = ({ isOpen, onClose }) =
       const aiMsg: ChatMessage = {
         id: 'ai-' + Date.now(),
         sender: 'ai',
-        text: data.content || data.fallback || 'Tôi rất vui được hỗ trợ bạn khám phá!',
+        text: data.content || 'Tôi rất vui được hỗ trợ bạn khám phá!',
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, aiMsg]);

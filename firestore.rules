@@ -2,12 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global Safety Net
+    // Global Safety Net - Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
+    // Common Security Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -33,38 +33,124 @@ service cloud.firestore {
              (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
              (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
              (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
-             (!('role' in data) || data.role in ['tourist', 'host', 'admin']) &&
+             (!('role' in data) || data.role in ['tourist', 'guide', 'admin']) &&
              (!('points' in data) || data.points is number) &&
+             (!('exp' in data) || data.exp is number) &&
+             (!('localCoins' in data) || data.localCoins is number) &&
              (!('completedQuests' in data) || data.completedQuests is list) &&
              (!('savedQuests' in data) || data.savedQuests is list) &&
-             (!('badges' in data) || data.badges is list);
+             (!('badges' in data) || data.badges is list) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50));
     }
 
-    function isValidBooking(data) {
+    function isValidQuest(data) {
       return data.id is string && data.id.size() <= 128 &&
-             data.userId is string && data.userId == request.auth.uid &&
-             data.questId is string && data.questId.size() <= 128 &&
-             data.bookingDate is string && data.bookingDate.size() <= 20 &&
-             data.touristsCount is number && data.touristsCount > 0 && data.touristsCount <= 50 &&
-             data.totalPriceVnd is number && data.totalPriceVnd >= 0;
+             data.name is string && data.name.size() <= 200 &&
+             data.city is string && data.city.size() <= 100 &&
+             data.price is number && data.price >= 0 &&
+             (!('difficulty' in data) || (data.difficulty is string && data.difficulty.size() <= 50)) &&
+             (!('theme' in data) || (data.theme is string && data.theme.size() <= 100)) &&
+             (!('story' in data) || (data.story is string && data.story.size() <= 4000)) &&
+             (!('teaser' in data) || (data.teaser is string && data.teaser.size() <= 1000)) &&
+             (!('waypoints' in data) || data.waypoints is list) &&
+             (!('status' in data) || data.status in ['active', 'pending', 'rejected']);
     }
 
-    // User Profiles collection
+    function isValidTicket(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.ticketCode is string && data.ticketCode.size() <= 100 &&
+             data.price is number && data.price >= 0 &&
+             data.qrPayload is string && data.qrPayload.size() <= 256 &&
+             (!('status' in data) || data.status in ['valid', 'used', 'completed', 'expired', 'playing', 'SCHEDULED']);
+    }
+
+    function isValidGuideProfile(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.fullName is string && data.fullName.size() <= 100 &&
+             data.phone is string && data.phone.size() <= 50 &&
+             data.city is string && data.city.size() <= 100 &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 1000)) &&
+             (!('status' in data) || data.status in ['pending', 'verified', 'approved', 'rejected']);
+    }
+
+    function isValidWallet(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.guideId is string && data.guideId.size() <= 128 &&
+             data.balanceVnd is number;
+    }
+
+    function isValidWalletTransaction(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.amount is number &&
+             data.type in ['earning', 'withdrawal', 'bonus', 'refund'] &&
+             data.description is string && data.description.size() <= 500;
+    }
+
+    function isValidWithdrawal(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.guideId is string && data.guideId.size() <= 128 &&
+             data.amount is number && data.amount > 0 &&
+             data.bankName is string && data.bankName.size() <= 100 &&
+             data.bankAccount is string && data.bankAccount.size() <= 50 &&
+             (!('status' in data) || data.status in ['pending', 'approved', 'rejected']);
+    }
+
+    // 1. User Profiles collection
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Disallow querying all user profiles
-      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && incoming().uid == request.auth.uid;
-      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) && incoming().uid == existing().uid;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && isValidUserProfile(incoming());
       allow delete: if isOwner(userId);
     }
 
-    // Tour Bookings collection
-    match /bookings/{bookingId} {
-      allow get: if isSignedIn() && existing().userId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(bookingId) && isValidBooking(incoming());
-      allow update: if isSignedIn() && isValidId(bookingId) && existing().userId == request.auth.uid && isValidBooking(incoming()) && incoming().userId == existing().userId;
-      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    // 2. Quests collection
+    match /quests/{questId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(questId) && isValidQuest(incoming());
+      allow update: if isSignedIn() && isValidId(questId) && isValidQuest(incoming());
+      allow delete: if isSignedIn() && isValidId(questId);
+    }
+
+    // 3. Tickets collection
+    match /tickets/{ticketId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (
+        !('buyerId' in resource.data) ||
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.guideId == request.auth.uid
+      );
+      allow create: if isSignedIn() && isValidId(ticketId) && isValidTicket(incoming());
+      allow update: if isSignedIn() && isValidId(ticketId) && isValidTicket(incoming());
+      allow delete: if isSignedIn() && isValidId(ticketId);
+    }
+
+    // 4. Guides collection
+    match /guides/{guideId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(guideId) && isValidGuideProfile(incoming());
+      allow update: if isSignedIn() && isValidId(guideId) && isValidGuideProfile(incoming());
+      allow delete: if isSignedIn() && isValidId(guideId);
+    }
+
+    // 5. Wallets and Transactions
+    match /wallets/{guideId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(guideId) && isValidWallet(incoming());
+      
+      match /transactions/{txId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(txId) && isValidWalletTransaction(incoming());
+        allow update, delete: if false;
+      }
+    }
+
+    // 6. Withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(withdrawalId) && isValidWithdrawal(incoming());
+      allow update: if isSignedIn() && isValidId(withdrawalId) && isValidWithdrawal(incoming());
+      allow delete: if isSignedIn() && isValidId(withdrawalId);
     }
   }
 }

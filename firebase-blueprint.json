@@ -2,53 +2,194 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Tourist passport profile and rewards",
+      "description": "Tourist and user passport profile, points, exp, and heritage badges",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "maxLength": 128 },
         "displayName": { "type": "string", "maxLength": 100 },
         "email": { "type": "string", "format": "email", "maxLength": 150 },
         "photoURL": { "type": "string", "maxLength": 500 },
-        "role": { "type": "string", "enum": ["tourist", "host", "admin"] },
+        "role": { "type": "string", "enum": ["tourist", "guide", "admin"] },
         "points": { "type": "number" },
+        "exp": { "type": "number" },
+        "localCoins": { "type": "number" },
         "completedQuests": { "type": "array" },
         "savedQuests": { "type": "array" },
         "badges": { "type": "array" },
+        "phone": { "type": "string", "maxLength": 50 },
         "joinedDate": { "type": "string", "maxLength": 50 },
         "updatedAt": { "type": "string", "maxLength": 50 }
       },
-      "required": ["uid", "email"]
+      "required": ["uid"]
     },
-    "BookingRecord": {
-      "title": "BookingRecord",
-      "description": "Tour reservation with local host",
+    "QuestDocument": {
+      "title": "QuestDocument",
+      "description": "Heritage tour quests created by guides or platform curators",
       "type": "object",
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
-        "userId": { "type": "string", "maxLength": 128 },
-        "userEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "name": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 100 },
+        "theme": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "rating": { "type": "number" },
+        "reviews": { "type": "number" },
+        "difficulty": { "type": "string", "maxLength": 50 },
+        "walkTime": { "type": "string", "maxLength": 50 },
+        "distance": { "type": "string", "maxLength": 50 },
+        "imageId": { "type": "string", "maxLength": 500 },
+        "teaser": { "type": "string", "maxLength": 500 },
+        "story": { "type": "string", "maxLength": 2000 },
+        "guideName": { "type": "string", "maxLength": 100 },
+        "guideId": { "type": "string", "maxLength": 128 },
+        "guideRating": { "type": "number" },
+        "guideImageId": { "type": "string", "maxLength": 500 },
+        "isApproved": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "pending", "rejected"] },
+        "waypoints": { "type": "array" },
+        "tags": { "type": "array" },
+        "featured": { "type": "boolean" },
+        "rewardPoints": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "city", "price"]
+    },
+    "TicketDocument": {
+      "title": "TicketDocument",
+      "description": "Tour quest booking tickets and digital heritage QR passes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketCode": { "type": "string", "maxLength": 100 },
         "questId": { "type": "string", "maxLength": 128 },
-        "questTitle": { "type": "string", "maxLength": 200 },
-        "destination": { "type": "string", "maxLength": 100 },
-        "bookingDate": { "type": "string", "maxLength": 20 },
+        "questName": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 100 },
+        "theme": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "purchaseDate": { "type": "string", "maxLength": 50 },
         "touristsCount": { "type": "number" },
-        "totalPriceVnd": { "type": "number" },
-        "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled"] },
-        "contactName": { "type": "string", "maxLength": 100 },
-        "contactEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "buyerId": { "type": "string", "maxLength": 128 },
+        "buyerName": { "type": "string", "maxLength": 100 },
+        "buyerEmail": { "type": "string", "format": "email", "maxLength": 150 },
+        "buyerPhone": { "type": "string", "maxLength": 50 },
+        "guideId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["valid", "used", "completed", "expired", "playing", "SCHEDULED"] },
+        "currentWaypointIndex": { "type": "number" },
+        "score": { "type": "number" },
+        "qrPayload": { "type": "string", "maxLength": 256 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "completedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "ticketCode", "questId", "price", "qrPayload"]
+    },
+    "GuideProfileDocument": {
+      "title": "GuideProfileDocument",
+      "description": "Local artisan and heritage guide applications and profiles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "uid": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "city": { "type": "string", "maxLength": 100 },
+        "bio": { "type": "string", "maxLength": 1000 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "rating": { "type": "number" },
+        "totalQuests": { "type": "number" },
+        "totalTourists": { "type": "number" },
+        "bankName": { "type": "string", "maxLength": 100 },
+        "bankAccount": { "type": "string", "maxLength": 50 },
+        "bankHolder": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "verified", "approved", "rejected"] },
+        "submittedDate": { "type": "string", "maxLength": 50 },
+        "specialties": { "type": "array" },
         "createdAt": { "type": "string", "maxLength": 50 }
       },
-      "required": ["id", "userId", "questId", "bookingDate", "touristsCount", "totalPriceVnd"]
+      "required": ["id", "fullName", "phone", "city"]
+    },
+    "GuideWalletDocument": {
+      "title": "GuideWalletDocument",
+      "description": "Financial wallet and balance for verified heritage guides",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "guideId": { "type": "string", "maxLength": 128 },
+        "guideName": { "type": "string", "maxLength": 100 },
+        "balanceVnd": { "type": "number" },
+        "pendingBalanceVnd": { "type": "number" },
+        "totalEarnedVnd": { "type": "number" },
+        "totalWithdrawnVnd": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "guideId", "balanceVnd"]
+    },
+    "WalletTransactionDocument": {
+      "title": "WalletTransactionDocument",
+      "description": "Ledger transactions for guide earnings and withdrawals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "guideId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["earning", "withdrawal", "bonus", "refund"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["completed", "pending", "failed"] },
+        "referenceId": { "type": "string", "maxLength": 128 },
+        "bankInfo": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["id", "amount", "type", "description"]
+    },
+    "WithdrawalDocument": {
+      "title": "WithdrawalDocument",
+      "description": "Guide withdrawal requests awaiting administrative approval",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "guideId": { "type": "string", "maxLength": 128 },
+        "guideName": { "type": "string", "maxLength": 100 },
+        "amount": { "type": "number" },
+        "bankName": { "type": "string", "maxLength": 100 },
+        "bankAccount": { "type": "string", "maxLength": 50 },
+        "bankHolder": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "requestedAt": { "type": "string", "maxLength": 50 },
+        "processedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "guideId", "amount", "bankName", "bankAccount"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "UserProfile",
-      "description": "Public and private tourist passport data indexed by user ID"
+      "description": "User profile and heritage passport credentials"
     },
-    "/bookings/{bookingId}": {
-      "schema": "BookingRecord",
-      "description": "Tour booking reservations created by tourists"
+    "/quests/{questId}": {
+      "schema": "QuestDocument",
+      "description": "Published and pending heritage discovery tours"
+    },
+    "/tickets/{ticketId}": {
+      "schema": "TicketDocument",
+      "description": "Tour quest booking tickets and digital passes"
+    },
+    "/guides/{guideId}": {
+      "schema": "GuideProfileDocument",
+      "description": "Guide verification applications and verified local profiles"
+    },
+    "/wallets/{guideId}": {
+      "schema": "GuideWalletDocument",
+      "description": "Guide revenue wallet and balance ledger"
+    },
+    "/wallets/{guideId}/transactions/{transactionId}": {
+      "schema": "WalletTransactionDocument",
+      "description": "Individual earning and withdrawal transaction items"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "WithdrawalDocument",
+      "description": "Withdrawal requests submitted by guides"
     }
   }
 }

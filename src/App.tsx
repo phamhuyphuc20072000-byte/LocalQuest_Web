@@ -1,200 +1,149 @@
-import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth, db, doc, getDoc } from './firebase';
-import { Quest, QUESTS, UserRole } from './data/quests';
-import { ScreenA1 } from './components/ScreenHome';
-import { ScreenA2, ScreenA3 } from './components/ScreenQuestDetail';
-import { ScreenA4 } from './components/ScreenAuth';
-import { ScreenA5, ScreenA6 } from './components/ScreenCheckout';
-import { ScreenGuideStudio, ScreenAdminDashboard, ScreenGameplay } from './components/ScreenGuideAdminGameplay';
+import React from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { QuestProvider, useQuest } from './context/QuestContext';
+import { ThemeProvider } from './context/ThemeContext';
 
-export type ScreenState = 
-  | 'A1' // Home
-  | 'A2' // Quest Detail
-  | 'A4' // Auth (Google, Email/Password, 6-Hole OTP)
-  | 'A5' // Checkout
-  | 'A6_SUCCESS' // Payment Success
-  | 'A6_FAIL' // Payment Failed
-  | 'GUIDE_STUDIO' // Guide Creator Studio
-  | 'ADMIN' // Admin Dashboard
-  | 'GAMEPLAY'; // Realtime Quest Experience
+// Common Luxury Layout Components
+import { Header } from './components/common/Header';
+import { Footer } from './components/common/Footer';
+import { FloatingAudioPlayer } from './components/common/FloatingAudioPlayer';
+import { AiChatWidget } from './components/common/AiChatWidget';
 
-export default function App() {
-  const [screen, setScreen] = useState<ScreenState>('A1');
-  const [selectedQuest, setSelectedQuest] = useState<Quest>(QUESTS[0]);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingData, setBookingData] = useState<{ guideType: 'human' | 'ai'; date: string; session: string; people: number; total: number } | null>(null);
-  const [redirectAfterAuth, setRedirectAfterAuth] = useState<'A5' | 'A1' | 'GUIDE_STUDIO' | 'ADMIN'>('A1');
+// Tourist Pages
+import { ExplorePage } from './pages/Tourist/ExplorePage';
+import { QuestDetailPage } from './pages/Tourist/QuestDetailPage';
+import { CheckoutPage } from './pages/Tourist/CheckoutPage';
+import { MyTicketsPage } from './pages/Tourist/MyTicketsPage';
+import { GameplayPage } from './pages/Tourist/GameplayPage';
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserEmail(user.email || '');
-        try {
-          const snap = await getDoc(doc(db, "users", user.uid));
-          if (snap.exists()) {
-            const data = snap.data();
-            setUserRole(data.role || 'tourist');
-          } else {
-            setUserRole('tourist');
-          }
-        } catch (e) {
-          setUserRole('tourist');
-        }
-      } else {
-        // Default guest
-        setUserRole(null);
-        setUserEmail('');
-      }
-    });
-    return () => unsub();
-  }, []);
+// Guide Pages
+import { GuideLandingPage } from './pages/Guide/GuideLandingPage';
+import { GuideRegisterPage } from './pages/Guide/GuideRegisterPage';
+import { GuideStudioPage } from './pages/Guide/GuideStudioPage';
+import { QuestCreatorPage } from './pages/Guide/QuestCreatorPage';
+import { GuideWalletPage } from './pages/Guide/GuideWalletPage';
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (e) {}
-    setUserRole(null);
-    setUserEmail('');
-    setScreen('A1');
-  };
+// Admin Pages
+import { AdminLoginPage } from './pages/Admin/AdminLoginPage';
+import { AdminDashboardPage } from './pages/Admin/AdminDashboardPage';
 
-  const handleQuestClick = (q: Quest) => {
-    setSelectedQuest(q);
-    setScreen('A2');
-  };
+function AppContent() {
+  const { activePage } = useQuest();
+  const { isLoginModalOpen, closeLoginModal, loginWithGoogle } = useAuth();
 
-  const handleProceedBooking = (data: { guideType: 'human' | 'ai'; date: string; session: string; people: number; total: number }) => {
-    setBookingData(data);
-    setShowBookingModal(false);
-    if (!userRole) {
-      setRedirectAfterAuth('A5');
-      setScreen('A4');
-    } else {
-      setScreen('A5');
+  // Page Routing Router
+  const renderCurrentPage = () => {
+    switch (activePage) {
+      case 'EXPLORE':
+        return <ExplorePage />;
+      case 'QUEST_DETAIL':
+        return <QuestDetailPage />;
+      case 'CHECKOUT':
+        return <CheckoutPage />;
+      case 'MY_TICKETS':
+        return <MyTicketsPage />;
+      case 'GAMEPLAY':
+        return <GameplayPage />;
+
+      case 'GUIDE_LANDING':
+        return <GuideLandingPage />;
+      case 'GUIDE_REGISTER':
+        return <GuideRegisterPage />;
+      case 'GUIDE_STUDIO':
+        return <GuideStudioPage />;
+      case 'QUEST_CREATOR':
+        return <QuestCreatorPage />;
+      case 'GUIDE_WALLET':
+        return <GuideWalletPage />;
+
+      case 'ADMIN_LOGIN':
+        return <AdminLoginPage />;
+      case 'ADMIN_DASHBOARD':
+        return <AdminDashboardPage />;
+
+      default:
+        return <ExplorePage />;
     }
   };
 
-  const handleAuthSuccess = (role: UserRole, email?: string) => {
-    if (role) {
-      setUserRole(role);
-      if (email) setUserEmail(email);
-      if (redirectAfterAuth === 'A5') {
-        setScreen('A5');
-      } else if (redirectAfterAuth === 'GUIDE_STUDIO') {
-        setScreen('GUIDE_STUDIO');
-      } else if (redirectAfterAuth === 'ADMIN') {
-        setScreen('ADMIN');
-      } else {
-        setScreen('A1');
-      }
-    } else {
-      setScreen('A1');
-    }
-  };
+  const isFullscreenGameplay = activePage === 'GAMEPLAY';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#F5F0E8' }}>
-      {/* Screen Routing */}
-      {screen === 'A1' && (
-        <ScreenA1
-          onQuestClick={handleQuestClick}
-          onLogin={() => { setRedirectAfterAuth('A1'); setScreen('A4'); }}
-          onLogout={handleLogout}
-          onGuidePortal={() => {
-            if (!userRole) {
-              setRedirectAfterAuth('GUIDE_STUDIO');
-              setScreen('A4');
-            } else {
-              setScreen('GUIDE_STUDIO');
-            }
-          }}
-          user={userRole}
-          userEmail={userEmail}
-          onPlayGame={() => setScreen('GAMEPLAY')}
-        />
+    <div className="min-h-screen flex flex-col bg-[#F7F4EE] text-stone-900 font-luxury-sans antialiased selection:bg-amber-400 selection:text-stone-950">
+      
+      {/* Header is rendered everywhere except full-screen Gameplay */}
+      {!isFullscreenGameplay && <Header />}
+
+      {/* Main Page Body */}
+      <main className="flex-1">
+        {renderCurrentPage()}
+      </main>
+
+      {/* Footer is rendered everywhere except full-screen Gameplay */}
+      {!isFullscreenGameplay && <Footer />}
+
+      {/* Global Floating Audio Player for AI Voice Narration */}
+      <FloatingAudioPlayer />
+
+      {/* Global Floating AI Heritage Concierge Assistant */}
+      {!isFullscreenGameplay && <AiChatWidget />}
+
+      {/* Google Auth Modal (if triggered) */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div 
+            className="w-full max-w-sm rounded-3xl p-6 sm:p-8 bg-[#FDFAF5] border shadow-2xl text-center space-y-5"
+            style={{ borderColor: '#D4AF37' }}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center mx-auto text-amber-800 font-heritage font-bold text-xl">
+              LQ
+            </div>
+            <div>
+              <h3 className="font-heritage text-xl font-bold text-[#0F2D1E]">
+                Đăng Nhập LocalQuest
+              </h3>
+              <p className="text-xs text-stone-500 font-luxury-sans mt-1">
+                Đăng nhập để đồng bộ vé di sản, điểm thưởng và tiến trình chơi của bạn trên mọi thiết bị.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                loginWithGoogle();
+                closeLoginModal();
+              }}
+              className="w-full py-3 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800 shadow-sm flex items-center justify-center gap-2 transition-colors font-mono"
+            >
+              <img
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google"
+                className="w-4 h-4"
+              />
+              <span>Đăng nhập với Google</span>
+            </button>
+
+            <button
+              onClick={closeLoginModal}
+              className="text-xs text-stone-400 hover:text-stone-600 font-mono"
+            >
+              Để sau
+            </button>
+          </div>
+        </div>
       )}
 
-      {screen === 'A2' && (
-        <>
-          <ScreenA2
-            quest={selectedQuest}
-            onBack={() => setScreen('A1')}
-            onBook={() => setShowBookingModal(true)}
-            user={userRole}
-            userEmail={userEmail}
-            onLogin={() => { setRedirectAfterAuth('A2' as any); setScreen('A4'); }}
-            onLogout={handleLogout}
-          />
-          {showBookingModal && (
-            <ScreenA3
-              quest={selectedQuest}
-              user={userRole}
-              onClose={() => setShowBookingModal(false)}
-              onProceed={handleProceedBooking}
-            />
-          )}
-        </>
-      )}
-
-      {screen === 'A4' && (
-        <ScreenA4
-          onSuccess={handleAuthSuccess}
-          redirectRole={redirectAfterAuth === 'A5' ? 'đặt vé' : undefined}
-        />
-      )}
-
-      {screen === 'A5' && (
-        <ScreenA5
-          quest={selectedQuest}
-          bookingData={bookingData}
-          onBack={() => setScreen('A2')}
-          onPay={() => setScreen('A6_SUCCESS')}
-          onFail={() => setScreen('A6_FAIL')}
-        />
-      )}
-
-      {screen === 'A6_SUCCESS' && (
-        <ScreenA6
-          success={true}
-          quest={selectedQuest}
-          onRetry={() => setScreen('A5')}
-          onHome={() => setScreen('A1')}
-          onPlayGame={() => setScreen('GAMEPLAY')}
-        />
-      )}
-
-      {screen === 'A6_FAIL' && (
-        <ScreenA6
-          success={false}
-          quest={selectedQuest}
-          onRetry={() => setScreen('A5')}
-          onHome={() => setScreen('A1')}
-          onPlayGame={() => setScreen('GAMEPLAY')}
-        />
-      )}
-
-      {screen === 'GUIDE_STUDIO' && (
-        <ScreenGuideStudio
-          onBack={() => setScreen('A1')}
-          onCreateQuest={(newQ) => {
-            console.log('Created new quest:', newQ);
-          }}
-        />
-      )}
-
-      {screen === 'ADMIN' && (
-        <ScreenAdminDashboard onBack={() => setScreen('A1')} />
-      )}
-
-      {screen === 'GAMEPLAY' && (
-        <ScreenGameplay
-          quest={selectedQuest}
-          onBack={() => setScreen('A1')}
-        />
-      )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <QuestProvider>
+          <AppContent />
+        </QuestProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

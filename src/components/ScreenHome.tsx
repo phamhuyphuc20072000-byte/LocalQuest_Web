@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Quest, QUESTS, QuestTheme, UserRole, formatPrice } from '../data/quests';
 import { PublicHeader, PublicFooter, QuestCard } from './SharedUI';
 import { TreasureMap } from './TreasureMap';
+import { askGeminiAiGuide, generateGeminiStory, AIChatMessage } from '../gemini';
 
 export function ScreenAiGuideDetailsModal({
   quest,
@@ -13,30 +14,79 @@ export function ScreenAiGuideDetailsModal({
   onBook: () => void;
 }) {
   const [demoInput, setDemoInput] = useState('');
-  const [demoChat, setDemoChat] = useState<{ sender: 'ai' | 'user'; text: string }[]>([
+  const [demoChat, setDemoChat] = useState<AIChatMessage[]>([
     {
       sender: 'ai',
-      text: `🤖 Chào bạn! Tôi là Trợ Lý AI Local Bot chuyên trách của Quest "${quest.name}". Tôi hoạt động 24/7, luôn sẵn sàng thuyết minh âm thanh & giải đáp mọi thắc mắc của bạn về quán ăn, lịch sử & góc chụp ảnh đẹp!`
+      text: `🤖 Chào bạn! Tôi là Trợ Lý AI Local Bot chuyên trách của Quest "${quest.name}". Tôi hoạt động 24/7, luôn sẵn sàng thuyết minh âm thanh & giải đáp mọi thắc mắc của bạn về quán ăn ngon, lịch sử & góc chụp ảnh đẹp tại ${quest.city}!`
     }
   ]);
+  const [loading, setLoading] = useState(false);
   const [isPlayingDemo, setIsPlayingDemo] = useState(false);
+  const [narrativeScript, setNarrativeScript] = useState<string>('');
 
-  const handleSendDemo = (msgText?: string) => {
-    const q = msgText || demoInput;
-    if (!q.trim()) return;
-    const msgs = [...demoChat, { sender: 'user' as const, text: q }];
-    setDemoChat(msgs);
-    if (!msgText) setDemoInput('');
+  useEffect(() => {
+    // Generate initial narration audio script for the first waypoint
+    const firstWp = quest.waypoints[0];
+    generateGeminiStory(firstWp?.name || quest.name, firstWp?.script || quest.story, quest.city)
+      .then(script => setNarrativeScript(script));
 
-    setTimeout(() => {
-      let reply = `🤖 [AI Bot Trả Lời]: Về thắc mắc "${q}" tại ${quest.city}, tôi có đầy đủ dữ liệu kịch bản thuyết minh và khuyến nghị bạn ghé thăm quán địa phương gia truyền nhé!`;
-      if (q.includes('ăn') || q.includes('món')) {
-        reply = `🍜 [AI Bot Quán Ngon Local]: Khi tham gia Quest "${quest.name}", tôi sẽ dẫn bạn đến quán ăn hơn 30 năm tuổi ẩn trong ngõ cổ với hương vị đậm đà nhất!`;
-      } else if (q.includes('ảnh') || q.includes('chụp')) {
-        reply = `📸 [AI Bot Góc Sống Ảo]: Tôi sẽ bật tọa độ GPS góc chụp ảnh đẹp nhất có góc chiếu sáng tự nhiên tuyệt vời tại từng trạm dừng!`;
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
       }
-      setDemoChat([...msgs, { sender: 'ai' as const, text: reply }]);
-    }, 500);
+    };
+  }, [quest]);
+
+  const toggleAudioNarration = () => {
+    if (!('speechSynthesis' in window)) {
+      alert('Trình duyệt không hỗ trợ Web Speech Audio.');
+      return;
+    }
+
+    if (isPlayingDemo) {
+      window.speechSynthesis.cancel();
+      setIsPlayingDemo(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const textToRead = narrativeScript || `Chào mừng bạn đến với Quest ${quest.name} tại ${quest.city}. ${quest.story}`;
+    const clean = textToRead.replace(/[*#_`]/g, '');
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.lang = 'vi-VN';
+    utterance.rate = 0.95;
+
+    utterance.onstart = () => setIsPlayingDemo(true);
+    utterance.onend = () => setIsPlayingDemo(false);
+    utterance.onerror = () => setIsPlayingDemo(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSendDemo = async (msgText?: string) => {
+    const q = msgText || demoInput;
+    if (!q.trim() || loading) return;
+
+    const userMsg: AIChatMessage = { sender: 'user', text: q };
+    const updatedChat = [...demoChat, userMsg];
+    setDemoChat(updatedChat);
+    if (!msgText) setDemoInput('');
+    setLoading(true);
+
+    try {
+      const reply = await askGeminiAiGuide(q, quest.name, updatedChat, quest.city);
+      setDemoChat(prev => [...prev, { sender: 'ai', text: reply }]);
+    } catch (err) {
+      setDemoChat(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: `🤖 [AI Bot]: Đối với Quest "${quest.name}" tại ${quest.city}, tôi khuyến nghị bạn ghé thăm quán gia truyền nằm trong ngõ nhỏ để thưởng thức hương vị đặc sắc nhất!`
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,37 +117,44 @@ export function ScreenAiGuideDetailsModal({
               🎙️ 1. Thuyết Minh Giọng Đọc Âm Thanh (AI Voice Narrator)
             </h4>
             <div style={{ background: 'rgba(28,74,50,0.06)', borderRadius: 6, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, border: '1px solid rgba(28,74,50,0.15)' }}>
-              <button onClick={() => setIsPlayingDemo(!isPlayingDemo)} style={{ width: 38, height: 38, borderRadius: '50%', background: '#1C4A32', color: '#FDFAF5', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+              <button onClick={toggleAudioNarration} style={{ width: 38, height: 38, borderRadius: '50%', background: '#1C4A32', color: '#FDFAF5', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                 {isPlayingDemo ? '⏸' : '▶'}
               </button>
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#1C4A32', margin: 0 }}>Nghe thử giọng thuyết minh AI</p>
-                <p style={{ fontSize: 11, color: '#6B6355', margin: 0, fontFamily: 'JetBrains Mono, monospace' }}>{isPlayingDemo ? '🔊 Đang phát kịch bản audio thuyết minh...' : 'Bấm ▶ để nghe thử kịch bản thuyết minh'}</p>
+                <p style={{ fontSize: 11, color: '#6B6355', margin: 0, fontFamily: 'JetBrains Mono, monospace' }}>{isPlayingDemo ? '🔊 Đang phát giọng đọc thuyết minh tiếng Việt...' : 'Bấm ▶ để nghe thử giọng thuyết minh AI'}</p>
               </div>
             </div>
           </div>
           {/* Feature 2: Interactive Sandbox */}
           <div style={{ marginBottom: 24 }}>
             <h4 style={{ fontFamily: 'Fraunces, serif', fontSize: 15, fontWeight: 600, color: '#1C4A32', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              💬 2. Dùng Thử Chatbot Tư Vấn AI Local Bot
+              💬 2. Trò Chuyện Trực Tiếp Với AI Local Bot (Gemini 24/7)
             </h4>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-              {['🍜 Quán ăn ngon địa phương?', '📸 Góc chụp ảnh check-in đẹp?', '📜 Bí mật lịch sử trạm'].map(chip => (
-                <button key={chip} onClick={() => handleSendDemo(chip)} style={{ padding: '4px 10px', borderRadius: 12, background: '#F5F0E8', border: '1px solid rgba(107,99,85,0.2)', fontSize: 11, cursor: 'pointer' }}>
+              {['🍜 Quán ăn ngon địa phương?', '📸 Góc chụp ảnh check-in đẹp?', '📜 Bí mật lịch sử trạm', '💡 Mẹo tránh đông đúc'].map(chip => (
+                <button key={chip} disabled={loading} onClick={() => handleSendDemo(chip)} style={{ padding: '4px 10px', borderRadius: 12, background: '#F5F0E8', border: '1px solid rgba(107,99,85,0.2)', fontSize: 11, cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
                   {chip}
                 </button>
               ))}
             </div>
-            <div style={{ background: '#F5F0E8', borderRadius: 6, padding: 12, maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, border: '1px solid rgba(107,99,85,0.15)', marginBottom: 10 }}>
+            <div style={{ background: '#F5F0E8', borderRadius: 6, padding: 12, maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, border: '1px solid rgba(107,99,85,0.15)', marginBottom: 10 }}>
               {demoChat.map((m, i) => (
-                <div key={i} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', background: m.sender === 'user' ? '#1C4A32' : '#FDFAF5', color: m.sender === 'user' ? '#FFF' : '#1A1A18', padding: '8px 12px', borderRadius: 6, fontSize: 12, lineHeight: 1.4 }}>
+                <div key={i} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', background: m.sender === 'user' ? '#1C4A32' : '#FDFAF5', color: m.sender === 'user' ? '#FFF' : '#1A1A18', padding: '8px 12px', borderRadius: 6, fontSize: 12, lineHeight: 1.4, whiteSpace: 'pre-line', border: m.sender === 'ai' ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
                   {m.text}
                 </div>
               ))}
+              {loading && (
+                <div style={{ alignSelf: 'flex-start', background: '#FDFAF5', padding: '6px 12px', borderRadius: 6, fontSize: 11, color: '#C97D1A', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'JetBrains Mono, monospace' }}>
+                  <span>⏳ AI đang phản hồi...</span>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input className="input-field" placeholder="Chat thử với AI Bot..." value={demoInput} onChange={e => setDemoInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSendDemo(); }} style={{ margin: 0, fontSize: 13 }} />
-              <button className="btn-amber" onClick={() => handleSendDemo()} style={{ padding: '0 16px', fontSize: 13 }}>Gửi</button>
+              <input className="input-field" placeholder="Chat trực tiếp với AI Bot..." value={demoInput} disabled={loading} onChange={e => setDemoInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSendDemo(); }} style={{ margin: 0, fontSize: 13 }} />
+              <button className="btn-amber" disabled={loading || !demoInput.trim()} onClick={() => handleSendDemo()} style={{ padding: '0 16px', fontSize: 13, opacity: (loading || !demoInput.trim()) ? 0.6 : 1 }}>
+                {loading ? '...' : 'Gửi'}
+              </button>
             </div>
           </div>
           {/* Pricing & CTA */}

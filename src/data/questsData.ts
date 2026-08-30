@@ -1,6 +1,6 @@
-import { Quest } from '../types';
+import { LegacyQuest } from '../types';
 
-export const INITIAL_QUESTS: Quest[] = [
+export const INITIAL_QUESTS: LegacyQuest[] = [
   {
     id: 'quest-hn-01',
     title: 'Hà Nội 36 Phố Phường & Bí Mật Cà Phê Trứng',
