@@ -1,52 +1,23 @@
-# 🧭 LocalQuest — Du Lịch & Khám Phá Thành Phố (Tourist & Guide Booking Platform)
+# LocalQuest Web Platform (Tourism & Local Experience Booking)
 
-Ứng dụng Web nền tảng kết nối **Khách Du Lịch (Tourist)** và **Hướng Dẫn Viên (Guide)** khám phá phố phường thông qua trải nghiệm thực tế và sáng tạo.
-
----
-
-## 🚀 Công Nghệ Sử Dụng (Tech Stack)
-
-- **Frontend:** React 18, TypeScript, Vite, Vanilla CSS (Glassmorphic UI)
-- **Backend & Database:** Cloud Firestore (Firebase Database)
-- **Authentication:** Firebase Auth (Google Sign-In Popup & Email/Password)
-- **Deployment:** Firebase Hosting (`https://localquest2-tourist-web.web.app/`)
+Business Analysis & Functional Specification  
+Domain: Travel & Hospitality / E-commerce  
+Repository: [LocalQuest_Web](https://github.com/phamhuyphuc20072000-byte/LocalQuest_Web)
 
 ---
 
-## 🛠️ Hướng Dẫn Cài Đặt & Chạy Cục Bộ (Local Setup)
+## 1. Project Overview
+LocalQuest is a web-based tourism platform designed to empower domestic and international travelers to discover authentic local attractions, hidden culinary gems, and customized travel experiences hosted by local communities.
 
-```bash
-# 1. Cài đặt các gói phụ thuộc
-npm install
+## 2. Core Modules & Key Features
+- **Experience Discovery Engine:** Keyword search, multi-criteria filtering (Destination, Category, Price Range, Duration, Rating).
+- **Tour Booking & Checkout:** Real-time slot availability check, traveler guest count, and online payment processing.
+- **Host / Tour Guide Dashboard:** Local hosts can list experiences, set pricing, manage booking calendars, and accept traveler reservations.
+- **Review & Rating System:** Verified guest feedback and star ratings to maintain platform service quality.
+- **Interactive Tour Map:** Map integration displaying itinerary milestones and points of interest.
 
-# 2. Chạy Dev Server
-npm run dev
+## 3. Technology Stack
+- Frontend: HTML5, CSS3, JavaScript / React
+- Backend: RESTful APIs, Node.js / Java Spring
+- Database: MySQL / PostgreSQL
 
-# 3. Build bản Production
-npm run build
-```
-
----
-
-## 📌 Tính Năng Chính (Core Features)
-
-- 🧭 **Khách du lịch (Tourist):**
-  - Tìm kiếm chuyến đi (Quest) theo Thành phố (Hà Nội, Huế, Đà Nẵng, Hội An, TP.HCM) và Chủ đề (Ẩm thực, Lịch sử, Bí ẩn, Đêm).
-  - Đặt vé chuyến đi & Thanh toán mượt mà.
-  - Đăng nhập/Đăng ký tài khoản bằng Google Sign-In hoặc Email.
-  - Quên mật khẩu & Khôi phục với mã OTP 6 chữ số.
-
-- 🗺️ **Hướng dẫn viên (Guide):**
-  - Đăng ký hồ sơ Hướng dẫn viên.
-  - Tạo Quest chuyến đi mới & Lập lộ trình trạm dừng.
-  - Quản lý lịch dẫn khách & Danh sách du khách tham gia.
-  - Quản lý Ví tiền & Yêu cầu Rút tiền.
-
-- ⚙️ **Admin Portal:**
-  - Cổng quản trị bảo mật (/system-admin-portal).
-  - Phê duyệt hồ sơ Guide mới & Phê duyệt Quest chuyến đi.
-  - Xác nhận yêu cầu rút tiền của Guide.
-
----
-
-© 2026 LocalQuest Inc. All rights reserved.
