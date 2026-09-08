@@ -29,7 +29,7 @@ import { AdminDashboardPage } from './pages/Admin/AdminDashboardPage';
 
 function AppContent() {
   const { activePage } = useQuest();
-  const { isLoginModalOpen, closeLoginModal, loginWithGoogle } = useAuth();
+  const { isLoginModalOpen, closeLoginModal, loginWithGoogle, loginAsDemo } = useAuth();
 
   // Page Routing Router
   const renderCurrentPage = () => {
@@ -112,7 +112,7 @@ function AppContent() {
                 loginWithGoogle();
                 closeLoginModal();
               }}
-              className="w-full py-3 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800 shadow-sm flex items-center justify-center gap-2 transition-colors font-mono"
+              className="w-full py-3 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800 shadow-sm flex items-center justify-center gap-2 transition-colors font-mono cursor-pointer"
             >
               <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -122,11 +122,48 @@ function AppContent() {
               <span>Đăng nhập với Google</span>
             </button>
 
+            {/* Quick preview demo accounts */}
+            <div className="pt-2 border-t border-stone-200">
+              <p className="text-[10px] font-mono text-stone-400 uppercase mb-2">Hoặc đăng nhập nhanh (Preview Demo)</p>
+              <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    loginAsDemo('tourist');
+                    closeLoginModal();
+                  }}
+                  className="px-2 py-2 rounded-xl bg-stone-100 hover:bg-amber-100 hover:border-amber-300 text-stone-700 font-medium border border-stone-200 transition-colors cursor-pointer"
+                >
+                  Du Khách
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loginAsDemo('guide');
+                    closeLoginModal();
+                  }}
+                  className="px-2 py-2 rounded-xl bg-stone-100 hover:bg-amber-100 hover:border-amber-300 text-stone-700 font-medium border border-stone-200 transition-colors cursor-pointer"
+                >
+                  HDV Guide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loginAsDemo('admin');
+                    closeLoginModal();
+                  }}
+                  className="px-2 py-2 rounded-xl bg-stone-100 hover:bg-amber-100 hover:border-amber-300 text-stone-700 font-medium border border-stone-200 transition-colors cursor-pointer"
+                >
+                  Quản Trị
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={closeLoginModal}
-              className="text-xs text-stone-400 hover:text-stone-600 font-mono"
+              className="text-xs text-stone-400 hover:text-stone-600 font-mono cursor-pointer"
             >
-              Để sau
+              Để sau (Chế độ khách)
             </button>
           </div>
         </div>

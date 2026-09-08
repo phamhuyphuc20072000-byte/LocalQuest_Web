@@ -3,7 +3,15 @@ import { Compass, Heart, MapPin, Phone, Mail, ShieldCheck, Sparkles } from 'luci
 import { useQuest } from '../../context/QuestContext';
 
 export function Footer() {
-  const { setActivePage, setSelectedCity } = useQuest();
+  const { setActivePage, setSelectedCity, setSelectedQuest } = useQuest();
+
+  const handleGoHome = () => {
+    setActivePage('EXPLORE');
+    if (setSelectedQuest) {
+      setSelectedQuest(null);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <footer className="w-full text-stone-300 mt-20" style={{
@@ -15,14 +23,21 @@ export function Footer() {
           
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#1C4A32] border border-[#D4AF37] flex items-center justify-center shadow-md">
+            <button
+              id="btn-footer-logo-home"
+              type="button"
+              onClick={handleGoHome}
+              className="flex items-center gap-3 cursor-pointer group py-1.5 px-2.5 -ml-2.5 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.15] transition-all text-left border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-amber-400 select-none"
+              title="Về trang chủ LocalQuest"
+              aria-label="Về trang chủ LocalQuest"
+            >
+              <div className="w-9 h-9 rounded-lg bg-[#1C4A32] border border-[#D4AF37] flex items-center justify-center shadow-md group-hover:scale-105 transition-transform flex-shrink-0">
                 <Compass className="w-5 h-5 text-amber-300" />
               </div>
               <span className="font-heritage text-2xl font-bold gold-gradient-text">
                 LocalQuest
               </span>
-            </div>
+            </button>
             <p className="text-sm text-stone-400 leading-relaxed font-luxury-sans">
               Nền tảng du lịch khám phá di sản và trải nghiệm bản địa thông qua các nhiệm vụ thực địa tương tác (Interactive City Quests), kết nối trực tiếp du khách với những người kể chuyện văn hoá địa phương.
             </p>

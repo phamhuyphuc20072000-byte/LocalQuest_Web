@@ -11,12 +11,14 @@ import {
   CreditCard,
   Sparkles,
   TrendingUp,
-  Landmark
+  Landmark,
+  AlertCircle
 } from 'lucide-react';
 import { useQuest } from '../../context/QuestContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../data/quests';
 import { subscribeGuideWallet, requestWithdrawal, GuideWalletData } from '../../services/walletService';
+import { auth, onAuthStateChanged } from '../../firebase';
 
 export function GuideWalletPage() {
   const { setActivePage } = useQuest();
@@ -61,38 +63,120 @@ export function GuideWalletPage() {
     ]
   });
 
-  const [withdrawAmount, setWithdrawAmount] = useState(2000000);
+  const [withdrawAmount, setWithdrawAmount] = useState<number | string>(2000000);
   const [bankName, setBankName] = useState('Vietcombank');
   const [bankAccount, setBankAccount] = useState('001100438999');
   const [bankHolder, setBankHolder] = useState('HOANG DUC THANH');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // onBlur Validation State
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  // Validator function for withdrawal form
+  const validateField = (fieldName: string, value: any): string => {
+    switch (fieldName) {
+      case 'withdrawAmount': {
+        const num = Number(value);
+        if (value === '' || isNaN(num) || num <= 0) {
+          return 'Thiếu chi tiết: Vui lòng nhập số tiền muốn rút.';
+        }
+        if (num < 100000) {
+          return 'Sai định dạng: Số tiền rút tối thiểu là 100.000₫.';
+        }
+        if (num > walletData.balanceVnd) {
+          return `Số tiền vượt quá số dư khả dụng (${formatPrice(walletData.balanceVnd)}).`;
+        }
+        return '';
+      }
+
+      case 'bankAccount': {
+        const str = String(value || '').trim();
+        if (!str) {
+          return 'Thiếu chi tiết: Vui lòng nhập số tài khoản ngân hàng thụ hưởng.';
+        }
+        const cleaned = str.replace(/[\s-]/g, '');
+        if (!/^\d{6,22}$/.test(cleaned)) {
+          return 'Sai định dạng: Số tài khoản chỉ gồm chữ số (từ 6 đến 22 số).';
+        }
+        return '';
+      }
+
+      case 'bankHolder': {
+        const str = String(value || '').trim();
+        if (!str) {
+          return 'Thiếu chi tiết: Vui lòng nhập tên chủ tài khoản ngân hàng.';
+        }
+        if (!/^[a-zA-Z\s]+$/.test(str) || str.length < 3) {
+          return 'Sai định dạng: Tên chủ tài khoản phải là chữ in hoa không dấu (VD: HOANG DUC THANH).';
+        }
+        return '';
+      }
+
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (fieldName: string, value: any) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+    const errorMsg = validateField(fieldName, value);
+    setErrors((prev) => ({ ...prev, [fieldName]: errorMsg }));
+  };
+
+  const handleInputChange = (fieldName: string, value: any, setter: (val: any) => void) => {
+    setter(value);
+    if (touched[fieldName] || submitAttempted) {
+      const errorMsg = validateField(fieldName, value);
+      setErrors((prev) => ({ ...prev, [fieldName]: errorMsg }));
+    }
+  };
+
   // Subscribe to real-time Guide Wallet
   useEffect(() => {
-    const unsubscribe = subscribeGuideWallet(guideId, (liveWallet) => {
-      if (liveWallet) {
-        setWalletData(liveWallet);
+    let unsub = () => {};
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      unsub();
+      if (user) {
+        unsub = subscribeGuideWallet(guideId, (liveWallet) => {
+          if (liveWallet) {
+            setWalletData(liveWallet);
+          }
+        });
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsub();
+      unsubAuth();
+    };
   }, [guideId]);
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (withdrawAmount <= 0 || withdrawAmount > walletData.balanceVnd) {
-      setFeedbackMsg({
-        type: 'error',
-        text: 'Số tiền rút không hợp lệ hoặc vượt quá số dư khả dụng.'
-      });
-      return;
-    }
+    setSubmitAttempted(true);
 
-    if (!bankAccount.trim() || !bankHolder.trim()) {
+    const newErrors: Record<string, string> = {
+      withdrawAmount: validateField('withdrawAmount', withdrawAmount),
+      bankAccount: validateField('bankAccount', bankAccount),
+      bankHolder: validateField('bankHolder', bankHolder),
+    };
+
+    const newTouched: Record<string, boolean> = {
+      withdrawAmount: true,
+      bankAccount: true,
+      bankHolder: true,
+    };
+
+    setTouched(newTouched);
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).some(Boolean)) {
       setFeedbackMsg({
         type: 'error',
-        text: 'Vui lòng cung cấp đầy đủ số tài khoản và tên chủ thẻ.'
+        text: 'Vui lòng kiểm tra lại các trường thông tin bị thiếu hoặc sai định dạng (viền đỏ) trước khi chuyển tiền.'
       });
       return;
     }
@@ -101,7 +185,7 @@ export function GuideWalletPage() {
     setFeedbackMsg(null);
 
     try {
-      const res = await requestWithdrawal(guideId, guideName, withdrawAmount, {
+      const res = await requestWithdrawal(guideId, guideName, Number(withdrawAmount), {
         bankName,
         bankAccount,
         bankHolder
@@ -113,6 +197,9 @@ export function GuideWalletPage() {
           type: 'success',
           text: res.message
         });
+        setTouched({});
+        setErrors({});
+        setSubmitAttempted(false);
       } else {
         setFeedbackMsg({
           type: 'error',
@@ -206,22 +293,47 @@ export function GuideWalletPage() {
             )}
 
             <form onSubmit={handleWithdraw} className="space-y-4">
+              {/* Withdraw Amount Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-mono text-stone-600 block">SỐ TIỀN MUỐN RÚT (VND) *</label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="input-guide-withdrawAmount" className="text-xs font-mono text-stone-700 font-semibold block">
+                    SỐ TIỀN MUỐN RÚT (VND) *
+                  </label>
+                  {touched.withdrawAmount && !errors.withdrawAmount && (
+                    <span className="text-[11px] font-mono text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Hợp lệ
+                    </span>
+                  )}
+                </div>
                 <input
+                  id="input-guide-withdrawAmount"
                   type="number"
                   step={100000}
                   value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white font-mono text-base font-bold text-[#C97D1A]"
+                  onBlur={() => handleBlur('withdrawAmount', withdrawAmount)}
+                  onChange={(e) => handleInputChange('withdrawAmount', e.target.value, setWithdrawAmount)}
+                  className={`w-full px-4 py-2.5 rounded-xl border font-mono text-base font-bold text-[#C97D1A] transition-all focus:outline-none ${
+                    touched.withdrawAmount && errors.withdrawAmount
+                      ? 'border-rose-500 bg-rose-50/40 ring-2 ring-rose-500/20'
+                      : touched.withdrawAmount && !errors.withdrawAmount
+                      ? 'border-emerald-500 bg-emerald-50/20'
+                      : 'border-stone-300 bg-white'
+                  }`}
                 />
+                {touched.withdrawAmount && errors.withdrawAmount && (
+                  <div id="error-guide-withdrawAmount" className="flex items-start gap-1.5 text-rose-600 text-xs font-mono pt-0.5 animate-in fade-in duration-200">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-600" />
+                    <span>{errors.withdrawAmount}</span>
+                  </div>
+                )}
                 <div className="flex gap-1.5 pt-1">
                   {[1000000, 2000000, 5000000, walletData.balanceVnd].map((val, idx) => (
                     <button
                       key={idx}
+                      id={`btn-guide-quick-amount-${idx}`}
                       type="button"
-                      onClick={() => setWithdrawAmount(val)}
-                      className="px-2 py-1 rounded bg-stone-200 hover:bg-stone-300 text-[10px] font-mono text-stone-800"
+                      onClick={() => handleInputChange('withdrawAmount', val, setWithdrawAmount)}
+                      className="px-2 py-1 rounded bg-stone-200 hover:bg-stone-300 text-[10px] font-mono text-stone-800 transition-colors"
                     >
                       {val === walletData.balanceVnd ? 'Tất cả' : `${val / 1000000}M`}
                     </button>
@@ -229,12 +341,16 @@ export function GuideWalletPage() {
                 </div>
               </div>
 
+              {/* Bank Name Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-mono text-stone-600 block">NGÂN HÀNG THỤ HƯỞNG *</label>
+                <label htmlFor="select-guide-bankName" className="text-xs font-mono text-stone-700 font-semibold block">
+                  NGÂN HÀNG THỤ HƯỞNG *
+                </label>
                 <select
+                  id="select-guide-bankName"
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono"
+                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono focus:outline-none focus:border-[#1C4A32]"
                 >
                   <option value="Vietcombank">Vietcombank - Ngân hàng Ngoại thương</option>
                   <option value="Techcombank">Techcombank - Ngân hàng Kỹ thương</option>
@@ -245,32 +361,81 @@ export function GuideWalletPage() {
                 </select>
               </div>
 
+              {/* Bank Account Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-mono text-stone-600 block">SỐ TÀI KHOẢN *</label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="input-guide-bankAccount" className="text-xs font-mono text-stone-700 font-semibold block">
+                    SỐ TÀI KHOẢN *
+                  </label>
+                  {touched.bankAccount && !errors.bankAccount && (
+                    <span className="text-[11px] font-mono text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Hợp lệ
+                    </span>
+                  )}
+                </div>
                 <input
+                  id="input-guide-bankAccount"
                   type="text"
                   value={bankAccount}
-                  onChange={(e) => setBankAccount(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono"
+                  onBlur={() => handleBlur('bankAccount', bankAccount)}
+                  onChange={(e) => handleInputChange('bankAccount', e.target.value, setBankAccount)}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono transition-all focus:outline-none ${
+                    touched.bankAccount && errors.bankAccount
+                      ? 'border-rose-500 bg-rose-50/40 text-rose-950 ring-2 ring-rose-500/20'
+                      : touched.bankAccount && !errors.bankAccount
+                      ? 'border-emerald-500 bg-emerald-50/20 text-stone-900'
+                      : 'border-stone-300 bg-white text-stone-900 focus:border-[#1C4A32]'
+                  }`}
                   placeholder="001100438999"
                 />
+                {touched.bankAccount && errors.bankAccount && (
+                  <div id="error-guide-bankAccount" className="flex items-start gap-1.5 text-rose-600 text-xs font-mono pt-0.5 animate-in fade-in duration-200">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-600" />
+                    <span>{errors.bankAccount}</span>
+                  </div>
+                )}
               </div>
 
+              {/* Bank Holder Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-mono text-stone-600 block">TÊN CHỦ TÀI KHOẢN (KHÔNG DẤU) *</label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="input-guide-bankHolder" className="text-xs font-mono text-stone-700 font-semibold block">
+                    TÊN CHỦ TÀI KHOẢN (KHÔNG DẤU) *
+                  </label>
+                  {touched.bankHolder && !errors.bankHolder && (
+                    <span className="text-[11px] font-mono text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Hợp lệ
+                    </span>
+                  )}
+                </div>
                 <input
+                  id="input-guide-bankHolder"
                   type="text"
                   value={bankHolder}
-                  onChange={(e) => setBankHolder(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-mono uppercase"
+                  onBlur={() => handleBlur('bankHolder', bankHolder)}
+                  onChange={(e) => handleInputChange('bankHolder', e.target.value.toUpperCase(), setBankHolder)}
+                  className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono uppercase transition-all focus:outline-none ${
+                    touched.bankHolder && errors.bankHolder
+                      ? 'border-rose-500 bg-rose-50/40 text-rose-950 ring-2 ring-rose-500/20'
+                      : touched.bankHolder && !errors.bankHolder
+                      ? 'border-emerald-500 bg-emerald-50/20 text-stone-900'
+                      : 'border-stone-300 bg-white text-stone-900 focus:border-[#1C4A32]'
+                  }`}
                   placeholder="HOANG DUC THANH"
                 />
+                {touched.bankHolder && errors.bankHolder && (
+                  <div id="error-guide-bankHolder" className="flex items-start gap-1.5 text-rose-600 text-xs font-mono pt-0.5 animate-in fade-in duration-200">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-600" />
+                    <span>{errors.bankHolder}</span>
+                  </div>
+                )}
               </div>
 
               <button
+                id="btn-guide-submit-withdraw"
                 type="submit"
                 disabled={isWithdrawing || walletData.balanceVnd <= 0}
-                className="w-full btn-gold-aura py-3.5 text-xs font-bold"
+                className="w-full btn-gold-aura py-3.5 text-xs font-bold cursor-pointer"
               >
                 {isWithdrawing ? (
                   <span className="flex items-center justify-center gap-2">

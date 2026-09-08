@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Quest, Waypoint, PENDING_GUIDES, PENDING_QUESTS, PENDING_WITHDRAWALS, formatPrice } from '../data/quests';
 import { GuideMapStudio } from './GuideMapStudio';
+import { vietnameseSpeech } from '../utils/vietnameseSpeech';
 
 // 1. Guide Portal & Studio
 export function ScreenGuideStudio({
@@ -251,27 +252,18 @@ export function ScreenGameplay({
   const waypoint = quest.waypoints[currentStep] || quest.waypoints[0];
 
   const playWaypointAudio = () => {
-    if (!('speechSynthesis' in window)) {
-      alert('Trình duyệt không hỗ trợ Web Speech Audio.');
-      return;
-    }
     if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
+      vietnameseSpeech.stop();
       setIsPlayingAudio(false);
       return;
     }
-    window.speechSynthesis.cancel();
     const textToRead = `${waypoint.name}. ${waypoint.script}`;
-    const clean = textToRead.replace(/[*#_`]/g, '');
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'vi-VN';
-    utterance.rate = 0.95;
-
-    utterance.onstart = () => setIsPlayingAudio(true);
-    utterance.onend = () => setIsPlayingAudio(false);
-    utterance.onerror = () => setIsPlayingAudio(false);
-
-    window.speechSynthesis.speak(utterance);
+    setIsPlayingAudio(true);
+    vietnameseSpeech.speak(textToRead, {
+      rate: 0.95,
+      onEnd: () => setIsPlayingAudio(false),
+      onError: () => setIsPlayingAudio(false)
+    });
   };
 
   const handleGetAiHint = async () => {

@@ -59,6 +59,8 @@ export interface Quest {
   rewardPoints?: number;
   status?: 'active' | 'pending' | 'rejected';
   isApproved?: boolean;
+  startDate?: string;
+  departureTimes?: string[];
 }
 
 export interface Ticket {
@@ -71,6 +73,7 @@ export interface Ticket {
   price: number;
   purchaseDate: string;
   playDate?: string;
+  departureTime?: string;
   touristsCount: number;
   buyerName: string;
   buyerEmail: string;

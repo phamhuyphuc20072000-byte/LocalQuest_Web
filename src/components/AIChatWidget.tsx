@@ -1,7 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, MessageSquare, X, Send, Volume2, VolumeX, RotateCcw, Compass, MapPin, ChevronDown } from 'lucide-react';
 import { askGeminiAiGuide, AIChatMessage } from '../gemini';
+import { vietnameseSpeech } from '../utils/vietnameseSpeech';
 
+// Hàm render chữ in đậm và định dạng dòng cho câu trả lời của AI
+function renderFormattedMessage(text: string, isUser: boolean) {
+  return text.split('\n').map((line, lineIdx) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    return (
+      <span key={lineIdx} className="block min-h-[1.25em]">
+        {parts.map((part, partIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong
+                key={partIdx}
+                className={isUser ? 'font-bold text-white' : 'font-bold text-stone-950'}
+              >
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          return part;
+        })}
+      </span>
+    );
+  });
+}
+// Function AIChatWidget
 export function AIChatWidget({
   currentQuestName,
   currentCity
@@ -22,38 +47,53 @@ export function AIChatWidget({
   const [loading, setLoading] = useState(false);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Tự động cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     if (isOpen && !isMinimized) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen, isMinimized]);
 
-  // Handle Text-to-speech audio narration
-  const handleSpeak = (text: string, index: number) => {
-    if (!('speechSynthesis' in window)) {
-      alert('Trình duyệt không hỗ trợ tổng hợp giọng nói Web Speech.');
-      return;
+  // Tự động focus vào ô nhập khi mở khung chat
+  useEffect(() => {
+    if (isOpen && !isMinimized) {
+      inputRef.current?.focus(); // inputRef: Tự động đưa con trỏ vào ô nhập ngay khi người dùng bấm mở chat để có thể gõ phím ngay.
     }
+  }, [isOpen, isMinimized]);
 
+  // Cleanup âm thanh khi unmount & hỗ trợ bấm phím Escape để đóng nhanh
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        vietnameseSpeech.stop();
+        setSpeakingIndex(null);
+        setIsOpen(false);  // Bấm phím Esc trên bàn phím là đóng khung chat ngay.
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {  // Dừng ngay giọng nói nếu người dùng đóng tab hoặc chuyển trang, không để âm thanh phát ngầm.
+
+      window.removeEventListener('keydown', handleKeyDown);
+      vietnameseSpeech.stop();
+    };
+  }, [isOpen]);
+
+  // Handle Text-to-speech audio narration with pure Vietnamese native voice
+  const handleSpeak = (text: string, index: number) => {
     if (speakingIndex === index) {
-      window.speechSynthesis.cancel();
+      vietnameseSpeech.stop();
       setSpeakingIndex(null);
       return;
     }
 
-    window.speechSynthesis.cancel();
-    // Clean markdown stars/emojis slightly for natural speech
-    const cleanText = text.replace(/[*#_`]/g, '').replace(/\[.*?\]/g, '');
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'vi-VN';
-    utterance.rate = 1.0;
-
-    utterance.onend = () => setSpeakingIndex(null);
-    utterance.onerror = () => setSpeakingIndex(null);
-
     setSpeakingIndex(index);
-    window.speechSynthesis.speak(utterance);
+    vietnameseSpeech.speak(text, {
+      rate: 1.0,
+      onEnd: () => setSpeakingIndex(null),
+      onError: () => setSpeakingIndex(null)
+    });
   };
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -176,12 +216,12 @@ export function AIChatWidget({
               </button>
               <button
                 onClick={() => {
-                  window.speechSynthesis?.cancel();
+                  vietnameseSpeech.stop();
                   setSpeakingIndex(null);
                   setIsOpen(false);
                 }}
                 className="p-1 text-stone-400 hover:text-white rounded transition-colors"
-                title="Đóng chat"
+                title="Đóng chat (Esc)"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -227,7 +267,9 @@ export function AIChatWidget({
                           : 'bg-[#FDFAF5] border border-stone-200 text-stone-900 rounded-bl-none'
                       }`}
                     >
-                      <p className="m-0 text-xs sm:text-[13px]">{m.text}</p>
+                      <div className="m-0 text-xs sm:text-[13px] leading-relaxed">
+                        {renderFormattedMessage(m.text, m.sender === 'user')}
+                      </div>
                       
                       {/* Audio Speak button for AI messages */}
                       {m.sender === 'ai' && (
@@ -294,6 +336,7 @@ export function AIChatWidget({
                   className="flex items-center gap-2"
                 >
                   <input
+                    ref={inputRef}
                     type="text"
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}

@@ -42,6 +42,8 @@ import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../data/quests';
 import { Quest, Waypoint, Ticket } from '../../types';
 import { subscribeAllTicketsLive, processQrCheckIn, QrCheckInResult } from '../../services/ticketService';
+import { auth, onAuthStateChanged } from '../../firebase';
+import { vietnameseSpeech } from '../../utils/vietnameseSpeech';
 
 export function AdminDashboardPage() {
   const { 
@@ -89,14 +91,21 @@ export function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    const unsubTickets = subscribeAllTicketsLive((tList) => {
-      if (tList) {
-        setAllTickets(tList);
+    let unsubTickets = () => {};
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      unsubTickets();
+      if (user) {
+        unsubTickets = subscribeAllTicketsLive((tList) => {
+          if (tList) {
+            setAllTickets(tList);
+          }
+        });
       }
     });
 
     return () => {
       unsubTickets();
+      unsubAuth();
     };
   }, []);
 
@@ -162,25 +171,18 @@ export function AdminDashboardPage() {
     showToast(`Đã từ chối lệnh rút tiền #${w.id}.`);
   };
 
-  // Live Audio TTS Preview for Waypoint Script
+  // Live Audio TTS Preview for Waypoint Script (100% Native Vietnamese Speech)
   const handleTestAudio = (wp: Waypoint, questTitle: string) => {
     if (playingAudioWaypointId === wp.id) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      vietnameseSpeech.stop();
       setPlayingAudioWaypointId(null);
     } else {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const clean = wp.script.replace(/[*#_`]/g, '');
-        const utterance = new SpeechSynthesisUtterance(clean);
-        utterance.lang = 'vi-VN';
-        utterance.rate = 1.0;
-        utterance.onend = () => setPlayingAudioWaypointId(null);
-        utterance.onerror = () => setPlayingAudioWaypointId(null);
-        window.speechSynthesis.speak(utterance);
-      }
       setPlayingAudioWaypointId(wp.id);
+      vietnameseSpeech.speak(wp.script, {
+        rate: 1.0,
+        onEnd: () => setPlayingAudioWaypointId(null),
+        onError: () => setPlayingAudioWaypointId(null)
+      });
     }
   };
 

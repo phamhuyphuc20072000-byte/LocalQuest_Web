@@ -60,10 +60,34 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(DEFAULT_PROFILE);
-  const [role, setRoleState] = useState<UserRole>('tourist');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    try {
+      if (typeof window !== 'undefined' && localStorage.getItem('localquest_logged_out') === 'true') {
+        return null;
+      }
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('localquest_user_profile') : null;
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return DEFAULT_PROFILE;
+  });
+  const [role, setRoleState] = useState<UserRole>(() => {
+    try {
+      if (typeof window !== 'undefined' && localStorage.getItem('localquest_logged_out') === 'true') {
+        return 'tourist';
+      }
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('localquest_user_profile') : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role) return parsed.role;
+      }
+    } catch (e) {}
+    return 'tourist';
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+
+  const openLoginModal = () => setIsLoginModalOpen(true);
+  const closeLoginModal = () => setIsLoginModalOpen(false);
 
   // Sync user profile to Firestore `/users/{uid}`
   const syncToFirestore = async (profile: UserProfile) => {
@@ -87,6 +111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('localquest_logged_out');
+          }
+        } catch (e) {}
+
         setCurrentUser(user);
         
         let loadedProfile: UserProfile = {
@@ -130,9 +160,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setUserProfile(loadedProfile);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('localquest_user_profile', JSON.stringify(loadedProfile));
+          }
+        } catch (e) {}
         setRoleState(loadedProfile.role || 'tourist');
       } else {
         setCurrentUser(null);
+        if (typeof window !== 'undefined' && localStorage.getItem('localquest_logged_out') === 'true') {
+          setUserProfile(null);
+        }
       }
       setLoading(false);
     });
@@ -145,6 +183,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (userProfile) {
       const updated = { ...userProfile, role: newRole };
       setUserProfile(updated);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('localquest_user_profile', JSON.stringify(updated));
+        }
+      } catch (e) {}
       syncToFirestore(updated);
     }
   };
@@ -153,6 +196,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       if (res.user) {
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('localquest_logged_out');
+          }
+        } catch (e) {}
         setCurrentUser(res.user);
         setIsLoginModalOpen(false);
       }
@@ -165,6 +213,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginAsDemo = (demoRole: UserRole) => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('localquest_logged_out');
+      }
+    } catch (e) {}
+
     const names = {
       tourist: 'Nhà Thám Hiểm Di Sản',
       guide: 'Hoàng Đức Thành (Nghệ Nhân Bát Tràng)',
@@ -194,6 +248,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     setUserProfile(demoProfile);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('localquest_user_profile', JSON.stringify(demoProfile));
+      }
+    } catch (e) {}
     setIsLoginModalOpen(false);
   };
 
@@ -204,8 +263,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
     setCurrentUser(null);
-    setUserProfile(DEFAULT_PROFILE);
+    setUserProfile(null);
     setRoleState('tourist');
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('localquest_logged_out', 'true');
+        localStorage.removeItem('localquest_user_profile');
+      }
+    } catch (e) {}
   };
 
   const updatePoints = (delta: number, expDelta = 0) => {
@@ -217,11 +282,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       exp: Math.max(0, (userProfile.exp ?? 0) + expDelta)
     };
     setUserProfile(updated);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('localquest_user_profile', JSON.stringify(updated));
+      }
+    } catch (e) {}
     syncToFirestore(updated);
   };
 
   const toggleSaveQuest = (questId: number | string) => {
-    if (!userProfile) return;
+    if (!userProfile) {
+      openLoginModal();
+      return;
+    }
     const isSaved = userProfile.savedQuests.includes(questId);
     const updatedList = isSaved
       ? userProfile.savedQuests.filter((id) => id !== questId)
@@ -232,6 +305,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       savedQuests: updatedList
     };
     setUserProfile(updated);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('localquest_user_profile', JSON.stringify(updated));
+      }
+    } catch (e) {}
     syncToFirestore(updated);
   };
 
@@ -249,6 +327,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       badges: [...existing, { ...badge, unlockedAt: new Date().toISOString() }]
     };
     setUserProfile(updated);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('localquest_user_profile', JSON.stringify(updated));
+      }
+    } catch (e) {}
     syncToFirestore(updated);
   };
 
@@ -264,8 +347,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginAsDemo,
         logout,
         isLoginModalOpen,
-        openLoginModal: () => setIsLoginModalOpen(true),
-        closeLoginModal: () => setIsLoginModalOpen(false),
+        openLoginModal,
+        closeLoginModal,
         updatePoints,
         toggleSaveQuest,
         isQuestSaved,

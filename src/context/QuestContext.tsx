@@ -26,6 +26,8 @@ import {
   approveWithdrawal as approveWithdrawalService, 
   rejectWithdrawal as rejectWithdrawalService 
 } from '../services/walletService';
+import { vietnameseSpeech, VietnameseVoiceOption } from '../utils/vietnameseSpeech';
+import { auth, onAuthStateChanged } from '../firebase';
 
 export interface AudioTrackState {
   title: string;
@@ -40,6 +42,7 @@ export interface AudioTrackState {
   currentTime: number;
   duration: number;
   isMinimized?: boolean;
+  voiceId?: string;
 }
 
 export interface CheckInCelebration {
@@ -74,6 +77,9 @@ interface QuestContextType {
   
   // Audio Player State & Controls
   audioTrack: AudioTrackState | null;
+  selectedVoiceId: string;
+  setSelectedVoiceId: (voiceId: string) => void;
+  availableVoices: VietnameseVoiceOption[];
   playAudio: (track: {
     title: string;
     questName: string;
@@ -115,8 +121,12 @@ interface QuestContextType {
   rejectWithdrawal: (id: number | string) => Promise<void>;
 
   // Navigation helpers
+  bookingDate: string;
+  setBookingDate: (date: string) => void;
+  bookingTime: string;
+  setBookingTime: (time: string) => void;
   navigateToQuestDetail: (quest: Quest) => void;
-  navigateToCheckout: (quest: Quest) => void;
+  navigateToCheckout: (quest: Quest, initialSchedule?: { date?: string; time?: string }) => void;
   startGameplay: (ticket: Ticket) => void;
 }
 
@@ -172,6 +182,11 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
   const [celebration, setCelebration] = useState<CheckInCelebration | null>(null);
 
+  // Tour Booking Schedule (Date & Time)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [bookingDate, setBookingDate] = useState<string>(todayStr);
+  const [bookingTime, setBookingTime] = useState<string>('08:30');
+
   // Admin and Reviews
   const [pendingGuides, setPendingGuides] = useState<PendingGuideApplication[]>(INITIAL_PENDING_GUIDES);
   const [pendingQuests, setPendingQuests] = useState<PendingQuestReview[]>(INITIAL_PENDING_QUESTS);
@@ -205,10 +220,18 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // 3. Live Admin Pending Withdrawals Listener
-    const unsubWithdrawals = subscribePendingWithdrawals((wList) => {
-      if (wList && wList.length > 0) {
-        setPendingWithdrawals(wList);
+    // 3. Live Admin Pending Withdrawals Listener (Only attach listener if auth is ready and user is authenticated)
+    let unsubWithdrawals = () => {};
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      unsubWithdrawals();
+      if (user) {
+        unsubWithdrawals = subscribePendingWithdrawals((wList) => {
+          if (wList && wList.length > 0) {
+            setPendingWithdrawals(wList);
+          }
+        });
+      } else {
+        setPendingWithdrawals(INITIAL_PENDING_WITHDRAWALS);
       }
     });
 
@@ -234,6 +257,7 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
       unsubQuests();
       unsubGuides();
       unsubWithdrawals();
+      unsubAuth();
       unsubPendingQuests();
     };
   }, []);
@@ -248,7 +272,21 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
 
   // Audio State & Engine
   const [audioTrack, setAudioTrack] = useState<AudioTrackState | null>(null);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>('cloud_google_vi_female');
+  const [availableVoices, setAvailableVoices] = useState<VietnameseVoiceOption[]>([]);
   const audioIntervalRef = React.useRef<any>(null);
+
+  // Initialize available Vietnamese voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const list = vietnameseSpeech.getAvailableVoices();
+      setAvailableVoices(list);
+    };
+    loadVoices();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
 
   // Helper to clear timer
   const clearAudioTimer = () => {
@@ -307,6 +345,26 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
     return () => clearAudioTimer();
   }, [audioTrack?.isPlaying, audioTrack?.playbackRate, audioTrack?.duration]);
 
+  const changeVoice = (voiceId: string) => {
+    setSelectedVoiceId(voiceId);
+    vietnameseSpeech.setPreferredVoice(voiceId);
+    if (audioTrack && audioTrack.isPlaying) {
+      // Re-trigger with new voice seamlessly
+      vietnameseSpeech.speak(audioTrack.script, {
+        rate: audioTrack.playbackRate || 1.0,
+        voiceId,
+        onEnd: () => {
+          setAudioTrack((prev) => {
+            if (prev && prev.isPlaying) {
+              handleTrackEnded(prev);
+            }
+            return prev ? { ...prev, isPlaying: false } : null;
+          });
+        }
+      });
+    }
+  };
+
   const playAudio = (track: {
     title: string;
     questName: string;
@@ -318,34 +376,35 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
   }) => {
     clearAudioTimer();
     const wordsCount = track.script.split(/\s+/).filter(Boolean).length;
-    const estimatedSecs = Math.max(16, Math.round(wordsCount / 2.2));
     const rate = audioTrack?.playbackRate || 1.0;
+    const estimatedSecs = Math.max(12, Math.round(wordsCount / (2.0 * rate)));
 
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const clean = track.script.replace(/[*#_`]/g, '');
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.lang = 'vi-VN';
-      utterance.rate = rate;
-
-      utterance.onend = () => {
+    // Use native Vietnamese speech engine
+    vietnameseSpeech.speak(track.script, {
+      rate,
+      voiceId: selectedVoiceId,
+      onProgress: (prog) => {
+        setAudioTrack((prev) => {
+          if (!prev || !prev.isPlaying) return prev;
+          return {
+            ...prev,
+            currentTime: prog.currentTime,
+            duration: Math.max(prev.duration, prog.duration)
+          };
+        });
+      },
+      onEnd: () => {
         setAudioTrack((prev) => {
           if (prev && prev.isPlaying) {
             handleTrackEnded(prev);
           }
-          return prev ? { ...prev, isPlaying: false } : null;
+          return prev ? { ...prev, isPlaying: false, currentTime: prev.duration } : null;
         });
-      };
-      utterance.onerror = () => {
-        setAudioTrack((prev) => (prev ? { ...prev, isPlaying: false } : null));
-      };
-
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn('Speech synthesis playback notice:', err);
+      },
+      onError: () => {
+        console.warn('Speech playback notice');
       }
-    }
+    });
 
     setAudioTrack({
       ...track,
@@ -353,30 +412,34 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
       playbackRate: rate,
       currentTime: 0,
       duration: estimatedSecs,
-      isMinimized: false
+      isMinimized: false,
+      voiceId: selectedVoiceId
     });
   };
 
   const pauseAudio = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.pause();
-    }
+    vietnameseSpeech.pause();
     setAudioTrack((prev) => (prev ? { ...prev, isPlaying: false } : null));
   };
 
   const resumeAudio = () => {
     if (!audioTrack) return;
-    if ('speechSynthesis' in window) {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      } else {
-        const clean = audioTrack.script.replace(/[*#_`]/g, '');
-        const utterance = new SpeechSynthesisUtterance(clean);
-        utterance.lang = 'vi-VN';
-        utterance.rate = audioTrack.playbackRate || 1.0;
-        window.speechSynthesis.speak(utterance);
-      }
+    
+    // Nếu đã phát hết (currentTime gần bằng hoặc bằng duration), phát lại từ đầu
+    if (audioTrack.currentTime >= audioTrack.duration - 1 || audioTrack.currentTime === 0) {
+      playAudio({
+        title: audioTrack.title,
+        questName: audioTrack.questName,
+        script: audioTrack.script,
+        city: audioTrack.city,
+        waypointIndex: audioTrack.waypointIndex,
+        questId: audioTrack.questId,
+        audioUrl: audioTrack.audioUrl
+      });
+      return;
     }
+
+    vietnameseSpeech.resume();
     setAudioTrack((prev) => (prev ? { ...prev, isPlaying: true } : null));
   };
 
@@ -393,6 +456,19 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
     if (!audioTrack) return;
     const clamped = Math.max(0, Math.min(audioTrack.duration, seconds));
     setAudioTrack({ ...audioTrack, currentTime: clamped });
+    
+    // Nếu tua về 0 hoặc tua khi đang dừng, kích hoạt phát lại mượt mà
+    if (clamped === 0 && audioTrack.isPlaying) {
+      playAudio({
+        title: audioTrack.title,
+        questName: audioTrack.questName,
+        script: audioTrack.script,
+        city: audioTrack.city,
+        waypointIndex: audioTrack.waypointIndex,
+        questId: audioTrack.questId,
+        audioUrl: audioTrack.audioUrl
+      });
+    }
   };
 
   const skipAudio = (deltaSeconds: number) => {
@@ -404,13 +480,19 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
   const setPlaybackRate = (rate: number) => {
     if (!audioTrack) return;
     setAudioTrack({ ...audioTrack, playbackRate: rate });
-    if ('speechSynthesis' in window && audioTrack.isPlaying) {
-      window.speechSynthesis.cancel();
-      const clean = audioTrack.script.replace(/[*#_`]/g, '');
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.lang = 'vi-VN';
-      utterance.rate = rate;
-      window.speechSynthesis.speak(utterance);
+    if (audioTrack.isPlaying) {
+      vietnameseSpeech.speak(audioTrack.script, {
+        rate,
+        voiceId: selectedVoiceId,
+        onEnd: () => {
+          setAudioTrack((prev) => {
+            if (prev && prev.isPlaying) {
+              handleTrackEnded(prev);
+            }
+            return prev ? { ...prev, isPlaying: false } : null;
+          });
+        }
+      });
     }
   };
 
@@ -448,9 +530,7 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
 
   const stopAudio = () => {
     clearAudioTimer();
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    vietnameseSpeech.stop();
     setAudioTrack(null);
   };
 
@@ -554,8 +634,10 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const navigateToCheckout = (quest: Quest) => {
+  const navigateToCheckout = (quest: Quest, initialSchedule?: { date?: string; time?: string }) => {
     setSelectedQuest(quest);
+    if (initialSchedule?.date) setBookingDate(initialSchedule.date);
+    if (initialSchedule?.time) setBookingTime(initialSchedule.time);
     setActivePage('CHECKOUT');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -591,6 +673,9 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
         celebration,
         clearCelebration,
         audioTrack,
+        selectedVoiceId,
+        setSelectedVoiceId: changeVoice,
+        availableVoices,
         playAudio,
         pauseAudio,
         resumeAudio,
@@ -618,6 +703,10 @@ export function QuestProvider({ children }: { children: React.ReactNode }) {
         addPendingReview,
         approveWithdrawal,
         rejectWithdrawal,
+        bookingDate,
+        setBookingDate,
+        bookingTime,
+        setBookingTime,
         navigateToQuestDetail,
         navigateToCheckout,
         startGameplay

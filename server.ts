@@ -1,18 +1,14 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 8080;
 
   app.use(express.json());
 
@@ -112,10 +108,21 @@ async function startServer() {
       const systemInstruction = `Bạn là LocalQuest AI Concierge - Chuyên gia Văn Hóa & Hướng Dẫn Viên Bản Địa (Local Guide) 24/7 thông minh, phong thái ấm áp, tao nhã, am hiểu sâu sắc văn hóa, lịch sử ngàn năm, ẩm thực gia truyền và các góc ảnh "hidden gems" tại Việt Nam (Hà Nội, Hội An, TP.HCM, Huế, Ninh Bình, Đà Lạt...).
 
 Phong cách và quy tắc trả lời:
-1. Văn phong: Ấm áp, nhiệt tình, am hiểu, như một nghệ nhân hoặc người bạn địa phương lâu năm dẫn đường.
-2. Nội dung: Đưa ra thông tin chính xác, địa chỉ/ngõ phố cụ thể, khung giờ vàng tránh đông đúc, câu chuyện dân gian hoặc sự tích gắn liền với địa danh.
-3. Định dạng: Trình bày súc tích với tiêu đề in đậm, biểu tượng cảm xúc nhã nhặn (🍜, 🏮, 🏛️, 📸, 💡), gạch đầu dòng rõ ràng.
-4. Gợi ý Quest: Khi thảo luận về các chủ đề liên quan đến tour/trải nghiệm, hãy tự nhiên lồng ghép và nhắc đến tên các Quest có sẵn trong LocalQuest (ví dụ: "Bí Ẩn Phố Cổ Hà Nội", "Hương Vị Sài Gòn Xưa", "Ánh Sáng Đèn Lồng Hội An", "Huyền Thoại Sông Hương", "Dấu Chân Cố Đô Hoa Lư", "Sương Mù Đà Lạt 1930").`;
+1. Văn phong: Ấm áp, nhiệt tình, am hiểu, như một người bạn bản địa đồng hành lâu năm.
+2. Cấu trúc gợi ý địa điểm & quán ăn: Khi gợi ý địa điểm/quán ăn, hãy trình bày thành từng mục rõ ràng theo mẫu:
+### [Tên Quán / Địa Điểm] ★ [Số sao ví dụ 4.9]
+📍 [Số nhà, tên đường, quận, thành phố]
+✨ [Món đặc sắc nhất hoặc vẻ đẹp độc bản]
+💰 [Khoảng giá, ví dụ: 45.000đ - 65.000đ] | 🚶 Cách đây [Khoảng cách ước tính, ví dụ: 0.3km]
+💡 [Mẹo hay bản địa: giờ tránh đông đúc, cách gọi món chuẩn vị]
+
+3. Gợi ý Quest: Khi thảo luận về các chủ đề liên quan đến tour/trải nghiệm, hãy nhắc đến tên các Quest có sẵn trong LocalQuest (ví dụ: "Bí Ẩn Phố Cổ Hà Nội", "Hương Vị Phố Cổ 36 Phố Phường", "Hương Vị Sài Gòn Xưa", "Ánh Sáng Đèn Lồng Hội An", "Huyền Thoại Sông Hương", "Dấu Chân Cố Đô Hoa Lư", "Sương Mù Đà Lạt 1930").
+
+4. Gợi ý câu hỏi tiếp theo (ở cuối phản hồi):
+💡 Gợi ý tiếp theo:
+- 🧭 Dẫn đường đến [Tên địa điểm nổi bật]
+- ☕ Tìm thêm quán cafe ngắm phố cổ từ trên cao
+- 💰 Gợi ý combo ăn sập phố cổ dưới 100k`;
 
       // Build conversation contents
       const formattedContents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
@@ -140,7 +147,7 @@ Câu hỏi du khách: ${message}`;
       });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.1-flash-lite',
         contents: formattedContents,
         config: {
           systemInstruction,
@@ -207,7 +214,7 @@ Yêu cầu:
 3. Độ dài súc tích (khoảng 80 - 120 từ), hoàn hảo để phát trong Trình Phát Audio Nổi.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.1-flash-lite',
         contents: prompt
       });
 

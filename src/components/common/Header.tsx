@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Compass, 
   Ticket, 
@@ -7,6 +7,7 @@ import {
   Shield, 
   ChevronDown, 
   LogOut, 
+  LogIn,
   Volume2, 
   MapPin, 
   Menu, 
@@ -20,11 +21,35 @@ import { RoleBadge } from './Badges';
 
 export function Header() {
   const { userProfile, role, setRole, loginAsDemo, logout, openLoginModal } = useAuth();
-  const { activePage, setActivePage, tickets, audioTrack } = useQuest();
+  const { activePage, setActivePage, setSelectedQuest, tickets, audioTrack } = useQuest();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const roleMenuRef = useRef<HTMLDivElement>(null);
 
   const validTicketCount = tickets.filter((t) => t.status === 'valid').length;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (roleMenuRef.current && !roleMenuRef.current.contains(event.target as Node)) {
+        setShowRoleMenu(false);
+      }
+    };
+    if (showRoleMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showRoleMenu]);
+
+  const handleGoHome = () => {
+    setActivePage('EXPLORE');
+    if (setSelectedQuest) {
+      setSelectedQuest(null);
+    }
+    setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleRoleChange = (newRole: UserRole) => {
     setRole(newRole);
@@ -35,6 +60,15 @@ export function Header() {
     else setActivePage('EXPLORE');
   };
 
+  const handleLogout = async () => {
+    setShowRoleMenu(false);
+    setMobileMenuOpen(false);
+    await logout();
+    if (['ADMIN_DASHBOARD', 'ADMIN_LOGIN', 'GUIDE_STUDIO', 'QUEST_CREATOR', 'GUIDE_WALLET'].includes(activePage)) {
+      setActivePage('EXPLORE');
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 w-full transition-all duration-300 shadow-xl" style={{
       background: 'linear-gradient(180deg, #0F2D1E 0%, #153826 100%)',
@@ -42,12 +76,16 @@ export function Header() {
     }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
-        {/* Brand Logo */}
-        <div 
-          onClick={() => setActivePage('EXPLORE')}
-          className="flex items-center gap-3.5 cursor-pointer group"
+        {/* Brand Logo & Surrounding Area */}
+        <button
+          id="btn-header-logo-home"
+          type="button"
+          onClick={handleGoHome}
+          className="flex items-center gap-3.5 cursor-pointer group py-2.5 px-3 -my-2 -ml-3 rounded-2xl hover:bg-white/[0.08] active:bg-white/[0.15] transition-all duration-200 text-left border-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-amber-400 select-none"
+          title="Về trang chủ LocalQuest"
+          aria-label="Về trang chủ LocalQuest"
         >
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center relative shadow-lg transition-transform duration-300 group-hover:scale-105" style={{
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center relative shadow-lg transition-transform duration-300 group-hover:scale-105 flex-shrink-0" style={{
             background: 'linear-gradient(135deg, #1C4A32 0%, #0F2D1E 100%)',
             border: '1.5px solid #D4AF37',
             boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
@@ -69,7 +107,7 @@ export function Header() {
               Du Lịch Khám Phá Di Sản & Bản Địa
             </p>
           </div>
-        </div>
+        </button>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-1.5 lg:gap-3">
@@ -151,102 +189,127 @@ export function Header() {
             </div>
           )}
 
-          {/* Role & Profile Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl transition-all duration-200 hover:brightness-110"
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(212, 175, 55, 0.35)'
-              }}
-            >
-              <img
-                src={userProfile?.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
-                alt="Avatar"
-                className="w-7 h-7 rounded-full object-cover border border-amber-400/50"
-              />
-              <div className="text-left hidden lg:block">
-                <p className="text-xs font-semibold text-stone-100 m-0 leading-tight">
-                  {userProfile?.displayName?.split(' ')[0] || 'Tài Khoản'}
-                </p>
-                <div className="m-0">
-                  <RoleBadge role={role} />
-                </div>
-              </div>
-              <ChevronDown size={14} className="text-stone-300" />
-            </button>
-
-            {/* Role Switcher Menu Popup */}
-            {showRoleMenu && (
-              <div
-                className="absolute right-0 mt-2 w-64 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+          {/* Role & Profile Dropdown / Login Button */}
+          {userProfile ? (
+            <div className="relative" ref={roleMenuRef}>
+              <button
+                id="btn-header-profile-menu"
+                type="button"
+                onClick={() => setShowRoleMenu(!showRoleMenu)}
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl transition-all duration-200 hover:brightness-110 cursor-pointer"
                 style={{
-                  background: '#121412',
-                  border: '1.5px solid rgba(212, 175, 55, 0.4)',
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(212, 175, 55, 0.35)'
                 }}
+                aria-label="Tài khoản & vai trò"
               >
-                <div className="px-3 py-2 border-b border-stone-800 text-xs">
-                  <p className="text-stone-400 font-mono m-0 text-[10px]">CHUYỂN NHANH VAI TRÒ (PREVIEW)</p>
-                  <p className="text-stone-200 font-semibold m-0 mt-0.5">{userProfile?.displayName}</p>
+                <img
+                  src={userProfile.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
+                  alt="Avatar"
+                  className="w-7 h-7 rounded-full object-cover border border-amber-400/50"
+                />
+                <div className="text-left hidden lg:block">
+                  <p className="text-xs font-semibold text-stone-100 m-0 leading-tight">
+                    {userProfile.displayName?.split(' ')[0] || 'Tài Khoản'}
+                  </p>
+                  <div className="m-0">
+                    <RoleBadge role={role} />
+                  </div>
                 </div>
+                <ChevronDown size={14} className="text-stone-300" />
+              </button>
 
-                <div className="p-1 space-y-1">
-                  <button
-                    onClick={() => handleRoleChange('tourist')}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between ${
-                      role === 'tourist' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-stone-300 hover:bg-stone-800'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Compass size={14} /> Du Khách (Tourist)
-                    </span>
-                    {role === 'tourist' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
-                  </button>
+              {/* Role Switcher Menu Popup */}
+              {showRoleMenu && (
+                <div
+                  className="absolute right-0 mt-2 w-64 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                  style={{
+                    background: '#121412',
+                    border: '1.5px solid rgba(212, 175, 55, 0.4)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+                  }}
+                >
+                  <div className="px-3 py-2 border-b border-stone-800 text-xs">
+                    <p className="text-stone-400 font-mono m-0 text-[10px]">CHUYỂN NHANH VAI TRÒ (PREVIEW)</p>
+                    <p className="text-stone-200 font-semibold m-0 mt-0.5 truncate">{userProfile.displayName}</p>
+                  </div>
 
-                  <button
-                    onClick={() => handleRoleChange('guide')}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between ${
-                      role === 'guide' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-stone-300 hover:bg-stone-800'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Award size={14} /> Hướng Dẫn Viên (Guide)
-                    </span>
-                    {role === 'guide' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
-                  </button>
+                  <div className="p-1 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => handleRoleChange('tourist')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between cursor-pointer transition-colors ${
+                        role === 'tourist' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-stone-300 hover:bg-stone-800'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Compass size={14} /> Du Khách (Tourist)
+                      </span>
+                      {role === 'tourist' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                    </button>
 
-                  <button
-                    onClick={() => handleRoleChange('admin')}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between ${
-                      role === 'admin' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-stone-300 hover:bg-stone-800'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Shield size={14} /> Ban Quản Trị (Admin)
-                    </span>
-                    {role === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRoleChange('guide')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between cursor-pointer transition-colors ${
+                        role === 'guide' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-stone-300 hover:bg-stone-800'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Award size={14} /> Hướng Dẫn Viên (Guide)
+                      </span>
+                      {role === 'guide' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRoleChange('admin')}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between cursor-pointer transition-colors ${
+                        role === 'admin' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-stone-300 hover:bg-stone-800'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Shield size={14} /> Ban Quản Trị (Admin)
+                      </span>
+                      {role === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                    </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-stone-800 flex items-center justify-between px-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openLoginModal();
+                        setShowRoleMenu(false);
+                      }}
+                      className="text-[11px] text-amber-400 hover:underline font-mono cursor-pointer"
+                    >
+                      Đổi tài khoản
+                    </button>
+                    <button
+                      id="btn-header-logout"
+                      type="button"
+                      onClick={handleLogout}
+                      className="text-[11px] text-rose-300 hover:text-rose-200 flex items-center gap-1 font-mono transition-colors cursor-pointer py-1 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30"
+                    >
+                      <LogOut size={12} /> Đăng xuất
+                    </button>
+                  </div>
                 </div>
-
-                <div className="pt-2 border-t border-stone-800 flex items-center justify-between px-2">
-                  <button
-                    onClick={openLoginModal}
-                    className="text-[11px] text-amber-400 hover:underline font-mono"
-                  >
-                    Đăng nhập Google
-                  </button>
-                  <button
-                    onClick={logout}
-                    className="text-[11px] text-stone-400 hover:text-rose-400 flex items-center gap-1 font-mono"
-                  >
-                    <LogOut size={11} /> Đăng xuất
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <button
+              id="btn-header-login"
+              type="button"
+              onClick={openLoginModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold cursor-pointer shadow-sm active:scale-95"
+              title="Đăng nhập tài khoản LocalQuest"
+            >
+              <LogIn size={15} />
+              <span>Đăng nhập</span>
+            </button>
+          )}
         </div>
 
         {/* Mobile Hamburger Toggle */}
@@ -264,7 +327,7 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden px-4 pt-2 pb-4 space-y-2 border-t border-emerald-800 bg-[#0F2D1E] text-stone-100">
           <button
-            onClick={() => { setActivePage('EXPLORE'); setMobileMenuOpen(false); }}
+            onClick={handleGoHome}
             className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-white/10"
           >
             <MapPin size={16} /> Khám Phá Quest
@@ -288,6 +351,43 @@ export function Header() {
           >
             <Shield size={16} /> Bảng Quản Trị
           </button>
+
+          {/* Mobile Auth Section */}
+          <div className="pt-2 mt-2 border-t border-emerald-800/60">
+            {userProfile ? (
+              <div className="flex items-center justify-between px-3 py-2 bg-black/25 rounded-xl border border-amber-500/20">
+                <div className="flex items-center gap-2">
+                  <img
+                    src={userProfile.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
+                    alt="Avatar"
+                    className="w-8 h-8 rounded-full object-cover border border-amber-400/50"
+                  />
+                  <div className="text-left">
+                    <p className="text-xs font-semibold text-stone-100 m-0">{userProfile.displayName}</p>
+                    <span className="text-[10px] text-amber-300 font-mono">{userProfile.points.toLocaleString()} PTS</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-xs text-rose-300 hover:text-rose-200 flex items-center gap-1 font-mono py-1.5 px-2.5 rounded-lg bg-rose-500/20 border border-rose-500/30"
+                >
+                  <LogOut size={13} /> Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  openLoginModal();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-center py-2.5 rounded-xl bg-amber-500 text-stone-950 font-semibold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <LogIn size={16} /> Đăng nhập tài khoản
+              </button>
+            )}
+          </div>
         </div>
       )}
     </header>

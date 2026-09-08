@@ -16,6 +16,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'phamhuyphuc20072000@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -118,7 +126,8 @@ service cloud.firestore {
       allow list: if isSignedIn() && (
         !('buyerId' in resource.data) ||
         resource.data.buyerId == request.auth.uid ||
-        resource.data.guideId == request.auth.uid
+        resource.data.guideId == request.auth.uid ||
+        isAdmin()
       );
       allow create: if isSignedIn() && isValidId(ticketId) && isValidTicket(incoming());
       allow update: if isSignedIn() && isValidId(ticketId) && isValidTicket(incoming());

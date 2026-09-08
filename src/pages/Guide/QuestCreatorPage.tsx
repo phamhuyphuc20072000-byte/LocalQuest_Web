@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Quest, Waypoint, QuestTheme, QuestDifficulty } from '../../types';
 import { LeafletStudioMap } from '../../components/maps/LeafletStudioMap';
 import { generateWaypointScriptWithGemini } from '../../gemini';
+import { DateTimePicker } from '../../components/common/DateTimePicker';
 
 export function QuestCreatorPage() {
   const { setActivePage, addQuest, addPendingReview, playAudio } = useQuest();
@@ -35,6 +36,55 @@ export function QuestCreatorPage() {
   const [price, setPrice] = useState(199000);
   const [walkTime, setWalkTime] = useState('90 phút');
   const [distance, setDistance] = useState('2.5 km');
+
+  // Schedule & Departure State (Datepicker & Departure Times)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(todayStr);
+  const [selectedDepartureTime, setSelectedDepartureTime] = useState('08:30');
+  const [departureTimes, setDepartureTimes] = useState<string[]>(['08:30', '14:00', '16:30']);
+
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (fieldName: string, value: any): string => {
+    switch (fieldName) {
+      case 'name': {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) return 'Thiếu chi tiết: Vui lòng nhập tên Quest di sản.';
+        if (trimmed.length < 5) return 'Sai định dạng: Tên Quest tối thiểu 5 ký tự.';
+        return '';
+      }
+      case 'startDate': {
+        if (!value) return 'Thiếu chi tiết: Vui lòng chọn ngày mở tour khởi hành.';
+        const currentToday = new Date().toISOString().split('T')[0];
+        if (value < currentToday) return 'Sai định dạng: Ngày khởi hành không thể ở trong quá khứ.';
+        return '';
+      }
+      case 'departureTime': {
+        if (!value) return 'Thiếu chi tiết: Vui lòng chọn hoặc nhập khung giờ khởi hành.';
+        return '';
+      }
+      case 'teaser': {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) return 'Thiếu chi tiết: Vui lòng nhập đoạn tóm tắt hấp dẫn.';
+        return '';
+      }
+      case 'story': {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) return 'Thiếu chi tiết: Vui lòng nhập bối cảnh câu chuyện.';
+        return '';
+      }
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (field: string, val: any) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const errorMsg = validateField(field, val);
+    setErrors((prev) => ({ ...prev, [field]: errorMsg }));
+  };
 
   // Waypoints state
   const [waypoints, setWaypoints] = useState<Waypoint[]>([
@@ -134,13 +184,37 @@ export function QuestCreatorPage() {
   };
 
   const handlePublishQuest = () => {
-    if (!name.trim() || !teaser.trim() || !story.trim()) {
-      alert('Vui lòng điền đầy đủ tên Quest, tóm tắt và câu chuyện di sản.');
+    const nameErr = validateField('name', name);
+    const dateErr = validateField('startDate', startDate);
+    const timeErr = validateField('departureTime', selectedDepartureTime);
+    const teaserErr = validateField('teaser', teaser);
+    const storyErr = validateField('story', story);
+
+    setTouched({
+      name: true,
+      startDate: true,
+      departureTime: true,
+      teaser: true,
+      story: true
+    });
+
+    setErrors({
+      name: nameErr,
+      startDate: dateErr,
+      departureTime: timeErr,
+      teaser: teaserErr,
+      story: storyErr
+    });
+
+    if (nameErr || dateErr || timeErr || teaserErr || storyErr) {
+      alert('Vui lòng kiểm tra lại thông tin Quest: ' + (nameErr || dateErr || timeErr || teaserErr || storyErr));
+      setActiveTab('info');
       return;
     }
 
     setIsSubmitting(true);
     setTimeout(() => {
+      const activeTimes = departureTimes.length > 0 ? departureTimes : [selectedDepartureTime || '08:30'];
       const newQuest: Quest = {
         id: 'quest-' + Date.now(),
         name,
@@ -154,6 +228,8 @@ export function QuestCreatorPage() {
         reviews: 0,
         walkTime,
         distance,
+        startDate,
+        departureTimes: activeTimes,
         imageId: 'hanoi_old_quarter',
         guideName: userProfile?.displayName || 'Local Guide',
         guideRating: 5.0,
@@ -166,7 +242,7 @@ export function QuestCreatorPage() {
       addPendingReview(newQuest);
       setIsSubmitting(false);
 
-      alert('Đã gửi Quest lên Ban Quản Trị thẩm định thành công! Bạn có thể xem trạng thái phê duyệt trong Studio hoặc Bảng Quản Trị.');
+      alert('Đã gửi Quest lên Ban Quản Trị thẩm định thành công! Lịch khởi hành bắt đầu từ: ' + startDate + ' với các khung giờ: ' + activeTimes.join(', '));
       setActivePage('GUIDE_STUDIO');
     }, 1200);
   };
@@ -227,14 +303,33 @@ export function QuestCreatorPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-mono text-stone-700 font-bold block">TÊN NHIỆM VỤ (QUEST NAME) *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono text-stone-700 font-bold block">TÊN NHIỆM VỤ (QUEST NAME) *</label>
+                  {touched.name && !errors.name && (
+                    <span className="text-[11px] font-mono text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Hợp lệ
+                    </span>
+                  )}
+                </div>
                 <input
+                  id="input-guide-quest-name"
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-stone-300 bg-white text-base focus:outline-none focus:border-[#1C4A32] font-heritage font-bold"
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (touched.name) handleBlur('name', e.target.value);
+                  }}
+                  onBlur={() => handleBlur('name', name)}
+                  className={`w-full px-4 py-3 rounded-xl border bg-white text-base focus:outline-none font-heritage font-bold transition-colors ${
+                    touched.name && errors.name
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-stone-300 focus:border-[#1C4A32]'
+                  }`}
                   placeholder="Ví dụ: Bí Mật Mật Mã Cổ Trấn Phố Hội"
                 />
+                {touched.name && errors.name && (
+                  <p className="text-xs font-mono text-rose-600">{errors.name}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -313,26 +408,141 @@ export function QuestCreatorPage() {
                 />
               </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-mono text-stone-700 font-bold block">ĐOẠN TÓM TẮT HẤP DẪN (TEASER) *</label>
-                <input
-                  type="text"
-                  value={teaser}
-                  onChange={(e) => setTeaser(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-sm font-luxury-sans"
-                  placeholder="1-2 câu lôi cuốn du khách bắt đầu chuyến phiêu lưu..."
+              {/* Departure Schedule & Time slots Config for Guide */}
+              <div className="space-y-3 sm:col-span-2 pt-3 border-t border-stone-300">
+                <DateTimePicker
+                  idPrefix="guide-create-dt"
+                  label="LỊCH TRÌNH KHỞI HÀNH & GIỜ ĐI (DATEPICKER CHO GUIDE) *"
+                  selectedDate={startDate}
+                  onDateChange={(val) => {
+                    setStartDate(val);
+                    if (touched.startDate) {
+                      handleBlur('startDate', val);
+                    }
+                  }}
+                  selectedTime={selectedDepartureTime}
+                  onTimeChange={(val) => {
+                    setSelectedDepartureTime(val);
+                    if (!departureTimes.includes(val)) {
+                      setDepartureTimes((prev) => [...prev, val].sort());
+                    }
+                  }}
+                  onBlur={() => handleBlur('startDate', startDate)}
+                  isTouched={touched.startDate}
+                  error={errors.startDate}
+                  mode="guide"
                 />
+
+                {/* Additional Available Departure Times Chips */}
+                <div className="p-4 rounded-2xl bg-[#F5F0E8] border border-amber-300/80 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <span className="text-xs font-mono font-bold text-stone-800 flex items-center gap-1.5">
+                      <Clock size={14} className="text-amber-700" />
+                      CÁC KHUNG GIỜ MỞ TOUR TRONG NGÀY ({departureTimes.length} khung giờ)
+                    </span>
+                    <span className="text-[11px] text-stone-500 font-mono">
+                      Du khách có thể chọn một trong các khung giờ này khi đặt vé
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {departureTimes.map((slot) => (
+                      <span
+                        key={slot}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-amber-400/80 font-mono text-xs font-bold text-[#0F2D1E] shadow-2xs"
+                      >
+                        <Clock size={12} className="text-amber-700" />
+                        {slot}
+                        {departureTimes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setDepartureTimes((prev) => prev.filter((t) => t !== slot))}
+                            className="text-stone-400 hover:text-rose-600 ml-1 transition-colors font-bold"
+                            title="Xoá khung giờ này"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </span>
+                    ))}
+
+                    {/* Quick add slot input */}
+                    <div className="inline-flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-stone-300">
+                      <input
+                        type="time"
+                        id="input-add-custom-slot"
+                        className="text-xs font-mono bg-transparent outline-none cursor-pointer"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val && !departureTimes.includes(val)) {
+                            setDepartureTimes((prev) => [...prev, val].sort());
+                          }
+                        }}
+                      />
+                      <span className="text-[10px] text-stone-500 font-mono">+ Thêm giờ</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-mono text-stone-700 font-bold block">CÂU CHUYỆN & BỐI CẢNH VĂN HOÁ (NARRATIVE STORY) *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono text-stone-700 font-bold block">ĐOẠN TÓM TẮT HẤP DẪN (TEASER) *</label>
+                  {touched.teaser && !errors.teaser && (
+                    <span className="text-[11px] font-mono text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Hợp lệ
+                    </span>
+                  )}
+                </div>
+                <input
+                  id="input-guide-teaser"
+                  type="text"
+                  value={teaser}
+                  onChange={(e) => {
+                    setTeaser(e.target.value);
+                    if (touched.teaser) handleBlur('teaser', e.target.value);
+                  }}
+                  onBlur={() => handleBlur('teaser', teaser)}
+                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-sm font-luxury-sans transition-colors ${
+                    touched.teaser && errors.teaser
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-stone-300 focus:border-[#1C4A32]'
+                  }`}
+                  placeholder="1-2 câu lôi cuốn du khách bắt đầu chuyến phiêu lưu..."
+                />
+                {touched.teaser && errors.teaser && (
+                  <p className="text-xs font-mono text-rose-600">{errors.teaser}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono text-stone-700 font-bold block">CÂU CHUYỆN & BỐI CẢNH VĂN HOÁ (NARRATIVE STORY) *</label>
+                  {touched.story && !errors.story && (
+                    <span className="text-[11px] font-mono text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Hợp lệ
+                    </span>
+                  )}
+                </div>
                 <textarea
+                  id="input-guide-story"
                   value={story}
-                  onChange={(e) => setStory(e.target.value)}
+                  onChange={(e) => {
+                    setStory(e.target.value);
+                    if (touched.story) handleBlur('story', e.target.value);
+                  }}
+                  onBlur={() => handleBlur('story', story)}
                   rows={4}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 bg-white text-sm font-luxury-sans leading-relaxed"
+                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-sm font-luxury-sans leading-relaxed transition-colors ${
+                    touched.story && errors.story
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-stone-300 focus:border-[#1C4A32]'
+                  }`}
                   placeholder="Kể lại bối cảnh lịch sử, huyền tích hoặc câu chuyện đời sống chân thật nhất của vùng đất..."
                 />
+                {touched.story && errors.story && (
+                  <p className="text-xs font-mono text-rose-600">{errors.story}</p>
+                )}
               </div>
             </div>
 

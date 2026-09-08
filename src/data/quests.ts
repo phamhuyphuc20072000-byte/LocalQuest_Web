@@ -66,7 +66,7 @@ export const QUESTS: Quest[] = [
         lat: 21.0285,
         lng: 105.8522,
         name: 'Trạm 1: Tháp Bút & Hồ Gươm',
-        script: 'Bạn đang đứng trước Tháp Bút cổ kính nơi bờ Hồ Gươm. Trên đỉnh tháp khắc 3 chữ "Tả Thanh Thiên" - viết lên trời xanh. Nơi đây từng là điểm gặp gỡ của các sĩ tử xưa.',
+        script: 'Dạ chào bạn, mời bạn dừng chân bên bờ Hồ Gươm xanh biếc. Trước mắt bạn lúc này, chính là ngọn Tháp Bút uy nghiêm, sừng sững giữa trời mây. Bạn biết không, trên đỉnh tháp có khắc ba chữ Tả Thanh Thiên, nghĩa là viết lên trời xanh. Nơi đây từng là chốn hội ngộ, đàm đạo văn chương của bao bậc hiền tài Thăng Long xưa. Mời bạn hãy bước lại gần hơn, cùng giải mã câu đố đầu tiên nhé.',
         question: 'Ba chữ khắc trên Tháp Bút mang ý nghĩa biểu tượng gì?',
         answers: ['Viết lên trời xanh', 'Hào khí Thăng Long', 'Bảo vệ giang sơn'],
         correct: 0
@@ -76,7 +76,7 @@ export const QUESTS: Quest[] = [
         lat: 21.0310,
         lng: 105.8515,
         name: 'Trạm 2: Phố Hàng Bạc',
-        script: 'Hàng Bạc từng là nơi đúc tiền bạc cho triều đình phong kiến. Trong con ngõ nhỏ số 47, một biểu tượng mật vẫn được khắc tỉ mỉ trên xà gỗ nhà cổ.',
+        script: 'Dạ chào bạn, chúng ta vừa bước vào con phố Hàng Bạc sầm uất. Nơi đây từ thuở xưa, đã vang danh khắp kinh thành với nghề đúc bạc cho triều đình phong kiến. Bạn hãy nhìn vào con ngõ nhỏ số 47, nơi có những vì kèo gỗ lim đen bóng. Một ký hiệu cổ của các phường thợ kim hoàn, vẫn còn được giấu kín trên xà nhà. Mời bạn cùng quan sát thật kỹ để tìm câu trả lời nhé.',
         question: 'Nghề truyền thống nổi tiếng nhất của phố Hàng Bạc là gì?',
         answers: ['Đúc rèn kim hoàn & bạc', 'Khảm xà cừ', 'Dệt lụa tơ tằm'],
         correct: 0
@@ -86,7 +86,7 @@ export const QUESTS: Quest[] = [
         lat: 21.0355,
         lng: 105.8548,
         name: 'Trạm 3: Ô Quan Chưởng',
-        script: 'Cửa ô duy nhất còn lại trọn vẹn của kinh thành Thăng Long xưa. Hãy quan sát vòm cổng gạch nung đỏ rêu phong để tìm con số năm xây dựng lại.',
+        script: 'Dạ chào bạn, trước mắt bạn là cửa Ô Quan Chưởng rêu phong cổ kính. Đây là cửa ô duy nhất của kinh thành Thăng Long xưa, còn đứng vững nguyên vẹn đến ngày nay. Bạn hãy đưa mắt ngắm nhìn vòm cổng gạch nung đỏ thẫm, lắng nghe tiếng xe cộ xôn xao hòa cùng nhịp sống phố phường. Hãy cùng tôi tìm con số khắc trên vòm cửa để mở khóa kho báu cuối cùng bạn nhé.',
         question: 'Ô Quan Chưởng là cửa ô còn giữ lại kiến trúc dạng gì?',
         answers: ['Cửa ô vọng lâu 2 tầng', 'Cổng tam quan đá', 'Tháp canh gỗ'],
         correct: 0
@@ -118,7 +118,7 @@ export const QUESTS: Quest[] = [
         lat: 10.7725,
         lng: 106.6980,
         name: 'Trạm 1: Chợ Bến Thành',
-        script: 'Ngôi chợ biểu tượng hơn trăm năm tuổi của Sài Gòn với tháp đồng hồ 4 mặt ngắm nhìn giao lộ đông đúc.',
+        script: 'Dạ chào bạn, mời bạn hòa mình vào không khí nhộn nhịp của Chợ Bến Thành. Ngôi chợ hơn trăm năm tuổi này, là trái tim gắn liền với bao thế hệ người Sài Gòn. Ngay tại cổng phía Nam, tháp đồng hồ bốn mặt vẫn cần mẫn điểm từng nhịp thời gian. Bạn hãy hít một hơi thật sâu, cảm nhận mùi thơm ngào ngạt của các món chè và cà phê bốc khói từ khu ẩm thực bên trong nhé.',
         question: 'Biểu tượng nổi bật nhất ở cổng phía Nam chợ Bến Thành là gì?',
         answers: ['Tháp đồng hồ 3 mặt', 'Tháp đồng hồ 4 mặt', 'Cổng vòm hoa văn'],
         correct: 1
@@ -128,7 +128,7 @@ export const QUESTS: Quest[] = [
         lat: 10.7770,
         lng: 106.6953,
         name: 'Trạm 2: Dinh Độc Lập & Cà Phê Bệt',
-        script: 'Góc công viên rợp bóng cây cổ thụ nơi lưu giữ nét văn hóa cà phê bệt mộc mạc của người dân địa phương.',
+        script: 'Dạ chào bạn, mời bạn ngồi nghỉ dưới tán cây xanh mát của công viên 30 tháng 4. Nơi đây lưu giữ nét văn hóa cà phê bệt mộc mạc, rất đỗi thân thương của người Sài Gòn. Một ly cà phê sữa đá ngọt bùi, vài câu chuyện rôm rả bên bạn bè, sẽ xua tan đi mọi mệt mỏi đường xa. Hãy cùng tôi lắng nghe tiếng chim hót và giải mã câu đố tiếp theo nhé.',
         question: 'Tên gọi quen thuộc của phong cách uống cà phê tại công viên này là gì?',
         answers: ['Cà phê bệt', 'Cà phê vợt', 'Cà phê trứng'],
         correct: 0
@@ -160,7 +160,7 @@ export const QUESTS: Quest[] = [
         lat: 15.8771,
         lng: 108.3259,
         name: 'Trạm 1: Chùa Cầu Hội An',
-        script: 'Cây cầu cổ do các thương gia Nhật Bản khởi công xây dựng vào khoảng thế kỷ 17.',
+        script: 'Dạ chào bạn, mời bạn bước chậm lại trên cây cầu ngói trăm năm tuổi. Chiếc Chùa Cầu rêu phong này, vắt ngang dòng kênh nhỏ êm đềm chảy ra sông Hoài. Bạn biết không, các thương nhân Nhật Bản xưa đã dựng nên cây cầu, như một thanh bảo kiếm trấn giữ bình yên cho phố Hội. Dưới ánh đèn lồng lấp lánh đêm nay, chúng ta cùng lắng nghe tiếng gió thì thầm và tìm kiếm mảnh ghép bí ẩn nhé.',
         question: 'Chùa Cầu Hội An còn có tên gọi khác là gì?',
         answers: ['Cầu Nhật Bản', 'Cầu An Hội', 'Cầu Khảm'],
         correct: 0
@@ -192,7 +192,7 @@ export const QUESTS: Quest[] = [
         lat: 16.4682,
         lng: 107.5776,
         name: 'Trạm 1: Cổng Ngọ Môn',
-        script: 'Cổng chính phía Nam của Hoàng thành Huế, nơi triều đình xưa tổ chức các lễ đăng quang và ban sóc.',
+        script: 'Dạ chào bạn, hãy cùng tôi lắng nghe tiếng chuông chiều buông xuống dòng sông Hương. Trước mắt bạn lúc này, là Cửa Ngọ Môn sừng sững, nhuốm màu rêu phong qua bao thăng trầm lịch sử. Từng phiến đá lát dưới chân bạn, đã từng in dấu hài của các bậc vua chúa triều Nguyễn. Bạn hãy bước qua chiếc cầu đá này, chúng ta cùng giải mã bí ẩn đầu tiên trong hoàng cung nhé.',
         question: 'Cổng Ngọ Môn gồm có bao nhiêu lối đi chính?',
         answers: ['5 lối đi', '3 lối đi', '7 lối đi'],
         correct: 0

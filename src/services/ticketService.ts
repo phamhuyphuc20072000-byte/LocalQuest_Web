@@ -9,7 +9,7 @@ import {
   query,
   where
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from './firebase';
 import { Ticket, UserProfile } from '../types';
 
@@ -45,6 +45,7 @@ export async function bookTicket(ticketPayload: {
   buyerId?: string;
   guideId?: string;
   playDate?: string;
+  departureTime?: string;
 }): Promise<Ticket> {
   const timestamp = Date.now();
   const ticketId = `tkt-${timestamp}`;
@@ -63,7 +64,8 @@ export async function bookTicket(ticketPayload: {
     theme: ticketPayload.theme,
     price: ticketPayload.price,
     purchaseDate: new Date().toLocaleDateString('vi-VN'),
-    playDate: ticketPayload.playDate || new Date().toLocaleDateString('vi-VN'),
+    playDate: ticketPayload.playDate || new Date().toISOString().split('T')[0],
+    departureTime: ticketPayload.departureTime || '08:30',
     touristsCount: ticketPayload.touristsCount || 1,
     buyerName: ticketPayload.buyerName,
     buyerEmail: ticketPayload.buyerEmail,
@@ -101,7 +103,7 @@ export function subscribeUserTickets(
   userId: string,
   callback: (tickets: Ticket[], lastCompletedTicketId?: string) => void
 ): () => void {
-  if (!db || !userId) {
+  if (!db || !userId || !auth.currentUser) {
     return () => {};
   }
 
@@ -220,7 +222,7 @@ export function subscribeAllTicketsLive(
     }
   ];
 
-  if (!db) {
+  if (!db || !auth.currentUser) {
     callback(fallbackTickets);
     return () => {};
   }

@@ -209,9 +209,15 @@ export function MyTicketsPage() {
                         <Users size={13} className="text-amber-700" />
                         <span>{ticket.touristsCount} Người tham gia</span>
                       </div>
+                      <div className="flex items-center gap-1.5 col-span-2 bg-amber-50/70 p-2 rounded-xl border border-amber-200/80">
+                        <Clock size={13} className="text-amber-700 shrink-0" />
+                        <span className="font-mono text-[11px]">
+                          Khởi hành: <strong className="text-amber-900">{ticket.departureTime || '08:30'}</strong> • <strong className="text-stone-900">{ticket.playDate ? ticket.playDate.split('-').reverse().join('/') : ticket.purchaseDate}</strong>
+                        </span>
+                      </div>
                       <div className="flex items-center gap-1.5">
                         <Calendar size={13} className="text-amber-700" />
-                        <span className="font-mono">{ticket.purchaseDate}</span>
+                        <span className="font-mono text-[11px]">Mua: {ticket.purchaseDate}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Sparkles size={13} className="text-amber-700" />

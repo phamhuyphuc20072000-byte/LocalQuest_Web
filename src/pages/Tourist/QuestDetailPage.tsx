@@ -330,8 +330,9 @@ export function QuestDetailPage() {
 
             {/* Direct Booking Action */}
             <button
+              id="btn-book-quest-detail"
               onClick={() => navigateToCheckout(selectedQuest)}
-              className="w-full btn-gold-aura py-4 text-sm font-bold tracking-wider"
+              className="w-full btn-gold-aura py-4 text-sm font-bold tracking-wider shadow-lg"
             >
               <span>ĐẶT VÉ TRẢI NGHIỆM NGAY</span>
             </button>

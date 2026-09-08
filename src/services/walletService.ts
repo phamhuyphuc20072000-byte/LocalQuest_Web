@@ -9,7 +9,7 @@ import {
   query,
   where
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from './firebase';
 import { WalletTransaction, PendingWithdrawal } from '../types';
 
@@ -194,7 +194,7 @@ export function subscribeGuideWallet(
     transactions: DEFAULT_TRANSACTIONS
   };
 
-  if (!db || !guideId) {
+  if (!db || !guideId || !auth.currentUser) {
     callback(fallbackWallet);
     return () => {};
   }
@@ -269,7 +269,7 @@ export function subscribePendingWithdrawals(
     { id: 2, guide: 'Trần Thị Lan', amount: 5000000, bank: 'Techcombank', account: '***2190', requested: '27/08/2026', status: 'pending' }
   ];
 
-  if (!db) {
+  if (!db || !auth.currentUser) {
     callback(fallbackList);
     return () => {};
   }

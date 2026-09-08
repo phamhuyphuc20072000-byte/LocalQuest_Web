@@ -3,6 +3,7 @@ import { Quest, QUESTS, QuestTheme, UserRole, formatPrice } from '../data/quests
 import { PublicHeader, PublicFooter, QuestCard } from './SharedUI';
 import { TreasureMap } from './TreasureMap';
 import { askGeminiAiGuide, generateGeminiStory, AIChatMessage } from '../gemini';
+import { vietnameseSpeech } from '../utils/vietnameseSpeech';
 
 export function ScreenAiGuideDetailsModal({
   quest,
@@ -31,36 +32,25 @@ export function ScreenAiGuideDetailsModal({
       .then(script => setNarrativeScript(script));
 
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      vietnameseSpeech.stop();
     };
   }, [quest]);
 
   const toggleAudioNarration = () => {
-    if (!('speechSynthesis' in window)) {
-      alert('Trình duyệt không hỗ trợ Web Speech Audio.');
-      return;
-    }
-
     if (isPlayingDemo) {
-      window.speechSynthesis.cancel();
+      vietnameseSpeech.stop();
       setIsPlayingDemo(false);
       return;
     }
 
-    window.speechSynthesis.cancel();
     const textToRead = narrativeScript || `Chào mừng bạn đến với Quest ${quest.name} tại ${quest.city}. ${quest.story}`;
-    const clean = textToRead.replace(/[*#_`]/g, '');
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'vi-VN';
-    utterance.rate = 0.95;
+    setIsPlayingDemo(true);
 
-    utterance.onstart = () => setIsPlayingDemo(true);
-    utterance.onend = () => setIsPlayingDemo(false);
-    utterance.onerror = () => setIsPlayingDemo(false);
-
-    window.speechSynthesis.speak(utterance);
+    vietnameseSpeech.speak(textToRead, {
+      rate: 0.95,
+      onEnd: () => setIsPlayingDemo(false),
+      onError: () => setIsPlayingDemo(false)
+    });
   };
 
   const handleSendDemo = async (msgText?: string) => {
